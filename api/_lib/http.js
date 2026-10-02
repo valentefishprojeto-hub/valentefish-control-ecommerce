@@ -39,6 +39,7 @@ export function appUrl(req){
 
 export function fail(res,error,status=500){
   const message=error instanceof Error?error.message:String(error);
+  const nextStatus=/máximo 40|vitrine|estoque insuficiente|Categoria não|Produto não/i.test(message)?409:status;
   console.error(error);
-  res.status(status).json({error:status===500?'Não foi possível concluir a operação':message});
+  res.status(nextStatus).json({error:message||'Não foi possível concluir a operação'});
 }

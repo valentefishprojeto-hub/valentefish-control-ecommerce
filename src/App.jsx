@@ -1,21 +1,12 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
-import {LayoutDashboard,MessageCircle,AtSign,Boxes,ShoppingBag,ClipboardCheck,RefreshCw,Camera,Check,ArrowRight,Search,ShoppingCart,User,Truck,ShieldCheck,BadgeCheck,Star,ArrowLeft,Heart,MessageSquareText,Trash2,LogOut,Package,MapPin,CreditCard,X} from 'lucide-react';
+import {MessageCircle,AtSign,Check,ArrowRight,Search,ShoppingCart,User,Truck,ShieldCheck,BadgeCheck,Star,ArrowLeft,Heart,MessageSquareText,LogOut,CreditCard,X,Menu,Trash2,MapPin,Package} from 'lucide-react';
 import {api,cartCount,cartSubtotal,fallbackQuotes,formatPrice,loadCart,loadOrders,lookupCep,priceValue,saveCart,saveOrder,setCartQuantity,upsertCartItem} from './commerce';
 import {authMessage,currentSession,loadProfile,loginAccount as signInAccount,loginWithGoogle,logoutAccount as signOutAccount,onAuthChange,registerAccount as signUpAccount,updateAccount} from './auth';
+import {FEATURED_LIMIT,categoryPath,fallbackCategories,loadCatalog} from './catalog';
+import {ErpApp} from './erp';
+import {track,trackCart} from './track';
 
-const views={
- overview:['Visão geral','Operação, atendimento e vendas em uma única estrutura.'],
- automation:['Automação Instagram','Do comentário “valor” à página exata do produto.'],
- inbox:['ChatBô & Inbox','Instagram, Facebook e WhatsApp em uma única caixa de entrada.'],
- erp:['ERP & Estoque','A fonte oficial de produtos, disponibilidade e vendas.'],
- shop:['Novo e-commerce','Catálogo carregado diretamente do ERP de controle.'],
- plan:['Planejamento','Arquitetura, módulos e fases de implementação.']
-};
-const nav=[['overview','Visão geral',LayoutDashboard],['automation','Automação Instagram',AtSign],['inbox','ChatBô & Inbox',MessageCircle],['erp','ERP & Estoque',Boxes],['shop','E-commerce',ShoppingBag],['plan','Plano do projeto',ClipboardCheck]];
-
-function Card({title,children,className=''}){return <section className={`card ${className}`}><h2>{title}</h2>{children}</section>}
-function Metric({label,value,detail}){return <div className="metric"><small>{label}</small><strong>{value}</strong><span>{detail}</span></div>}
 function Toast({message}){return message?<div className="toast"><Check size={17}/>{message}</div>:null}
 
 function AquariumEffects(){
@@ -82,16 +73,6 @@ function CinematicIntro(){
   </div>
 }
 
-function Overview({go}){return <><div className="metrics"><Metric label="Vendas no mês" value="R$ 48.760" detail="↑ 18,4% vs. mês anterior"/><Metric label="Leads via automação" value="386" detail="142 chegaram do Instagram"/><Metric label="Produtos ativos" value="248" detail="96% sincronizados"/><Metric label="Atendimentos ChatBô" value="1.284" detail="78% resolvidos automaticamente"/></div><div className="split"><Card title="Fluxo integrado de venda"><div className="flow"><Flow icon="📱" title="Comenta VALOR" text="Instagram ou Facebook"/><ArrowRight/><Flow icon="💬" title="Recebe a DM" text="Produto, preço e link"/><ArrowRight/><Flow icon="🛒" title="Compra no site" text="Pix, cartão ou boleto"/></div><div className="flow second"><Flow icon="📷" title="Cadastro no ERP" text="Foto + identificação por IA"/><ArrowRight/><Flow icon="🔄" title="Sincronização" text="Estoque e catálogo central"/><ArrowRight/><Flow icon="📣" title="Publicação" text="Site e redes sociais"/></div></Card><Card title="Atividade em tempo real"><Activity icon="💬" title="Nova DM disparada" text="@marina comentou “valor” no post."/><Activity icon="🛒" title="Pedido #1842 confirmado" text="Pagamento via Pix • R$ 289,00."/><Activity icon="📦" title="Estoque sincronizado" text="1 unidade reservada no M-04."/><Activity icon="✨" title="Produto identificado" text="Zebrasoma flavescens • 94%."/></Card></div><button className="floating" onClick={()=>go('automation')}>Testar o fluxo “valor”</button></>}
-function Flow({icon,title,text}){return <div className="flowBox"><b className="emoji">{icon}</b><strong>{title}</strong><small>{text}</small></div>}
-function Activity({icon,title,text}){return <div className="activity"><span>{icon}</span><div><b>{title}</b><p>{text}</p></div></div>}
-
-function Automation({go}){return <><div className="automation"><Card title="1. Publicação monitorada"><div className="post"><small>VALENTE FISH</small><b>Peixe-palhaço Premium</b><strong>Comente VALOR para receber</strong></div><div className="comment"><b>@marina_souza</b> valor</div></Card><ArrowRight className="arrow"/><Card title="2. Regra da automação"><Rule label="Quando o comentário contiver" value="valor • preço • quero" accent/><Rule label="Responder no comentário" value="Te enviei as informações no direct 🐠"/><Rule label="Depois" value="Enviar DM e criar lead no ChatBô"/></Card><ArrowRight className="arrow"/><Card title="3. Mensagem no Direct"><div className="dm">Olá, Marina! Este é o peixe que você viu no post.<div className="mini"><span>🐠</span><div><b>Peixe-palhaço</b><strong>R$ 289,00</strong><small>3 unidades disponíveis</small></div></div><button onClick={()=>go('shop')}>Ver produto e comprar</button></div></Card></div><Card title="Recursos previstos" className="topgap"><div className="chips">{['Palavras-chave por publicação','Resposta pública configurável','DM com produto correto','Captura do lead','Tag de interesse','Follow-up automático','Transferência humana','Métricas de conversão'].map(x=><span key={x}>✓ {x}</span>)}</div></Card></>}
-function Rule({label,value,accent}) {return <label className="rule"><small>{label}</small><div className={accent?'accent':''}>{value}</div></label>}
-
-function Inbox({notify}){return <div className="split"><Card title="Caixa de entrada unificada"><Activity icon="IG" title="Marina Souza • Instagram" text="Esse peixe pode ficar com coral? • agora"/><Activity icon="WA" title="Lucas Prado • WhatsApp" text="Meu pagamento já foi confirmado? • 2 min"/><Activity icon="FB" title="Carla Mendes • Facebook" text="Vocês entregam para Curitiba? • 7 min"/></Card><Card title="Conversa — Marina"><div className="bubble">Sim, o Peixe-palhaço é compatível com diversos corais. Qual o tamanho do seu aquário?</div><div className="bubble client">Tenho um aquário marinho de 200 litros.</div><div className="bubble">Ótimo! Esse exemplar é adequado. Posso enviar o link ou chamar um especialista.</div><div className="buttons"><button onClick={()=>notify('Link do produto enviado')}>Enviar produto</button><button className="secondary" onClick={()=>notify('Conversa transferida para João')}>Transferir para humano</button></div></Card></div>}
-
-function ERP({notify}){return <div className="erp"><Card title="Catálogo e estoque central"><table><thead><tr><th>Produto</th><th>Local</th><th>Estoque</th><th>Canais</th></tr></thead><tbody>{[['Peixe-palhaço Premium','M-04','3 unidades','4/4'],['Yellow Tang','M-02','1 unidade','4/4'],['Coral Hammer Green','C-11','7 unidades','4/4'],['Discus Red Melon','D-03','5 unidades','4/4']].map((r,i)=><tr key={r[0]}><td><b>{r[0]}</b><small>VF-{String(i+18).padStart(4,'0')}</small></td><td>{r[1]}</td><td><span className={i===1?'pill warn':'pill'}>{r[2]}</span></td><td>{r[3]}</td></tr>)}</tbody></table></Card><Card title="Cadastro assistido por IA"><div className="capture"><Camera size={34}/><b>Foto capturada pelo celular</b><p>A IA compara a foto com a base aprovada.</p><div className="result"><span className="pill">94% de confiança</span><h3>Yellow Tang</h3><i>Zebrasoma flavescens</i><small>Peixe marinho • 8 cm • semi-agressivo</small><button onClick={()=>notify('Produto aprovado e publicado')}>Aprovar e publicar</button></div></div></Card></div>}
 
 const storeProducts=[
   {name:'Peixe-palhaço Premium',category:'Peixes',price:'R$ 289,00',image:'/store/product-fish-clown.png',tag:'Quarentenado'},
@@ -112,12 +93,11 @@ const valenteStories=[
   ['R_0UQ2QAhfI','03','Mushroom','Bounce Frankenstein'],
   ['97flI2idI4E','04',"Valente's Reef",'Uma nova luz sobre o reef']
 ];
-const storeMenu=[['home','Início','/'],['produtos','Produtos','/produtos'],['peixes','Peixes','/peixes'],['corais','Corais','/corais'],['racoes','Rações','/racoes'],['filtragem','Filtragem','/filtragem'],['tratamentos','Tratamentos','/tratamentos'],['orcamento','Orçamento','/orcamento']];
+const storeMenu=[['home','Início','/'],['produtos','Produtos','/produtos'],['orcamento','Orçamento','/orcamento']];
 const commerceRoutes={'/conta':'conta','/conta/entrar':'entrar','/conta/criar':'criar-conta','/carrinho':'carrinho','/checkout':'checkout','/checkout/sucesso':'sucesso','/checkout/pendente':'pendente','/checkout/falha':'falha'};
-const catalogPages=['produtos','peixes','corais','racoes','filtragem','tratamentos'];
 const productSlug=name=>name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
-const storePageFromPath=path=>path.startsWith('/produto/')?'produto':commerceRoutes[path]||storeMenu.find(([, ,menuPath])=>menuPath===path)?.[0]||'home';
-const pageCategories={peixes:'Peixes',corais:'Corais',racoes:'Rações',filtragem:'Filtragem',tratamentos:'Tratamentos'};
+const storePageFromPath=(path,categories=[])=>path.startsWith('/produto/')?'produto':path.startsWith('/c/')||categories.some(category=>`/${category.slug}`===path)?'categoria':commerceRoutes[path]||storeMenu.find(([, ,menuPath])=>menuPath===path)?.[0]||'home';
+const activeCategoryFromPath=(path,categories=[])=>path.startsWith('/c/')?categories.find(category=>category.slug===path.slice(3)):categories.find(category=>`/${category.slug}`===path);
 const categoryInfo={
   Peixes:{description:'Exemplar selecionado pela equipe Valente Fish, acompanhado de perto e preparado para uma adaptação segura ao novo aquário.',details:['Animal quarentenado','Alimentação acompanhada','Suporte para aclimatação','Foto ilustrativa do lote']},
   Corais:{description:'Coral selecionado por coloração, saúde e estrutura, mantido sob parâmetros controlados antes da disponibilização.',details:['Cultivo selecionado','Iluminação moderada','Fluxo moderado','Suporte pós-compra']},
@@ -131,9 +111,10 @@ function CategoryGlyph({type}){
     peixes:<><path d="M6 24c7-9 18-10 27-3 4 3 4 7 0 10-9 7-20 6-27-3l-4 5V19l4 5Z"/><path d="M18 17c-2-4 2-7 6-8M18 35c-2 4 2 7 6 8"/><circle cx="30" cy="24" r="1.7"/></>,
     corais:<><path d="M24 42V21m0 8-9-8v-8m9 10 9-8V8m-9 20 11 7v-8M24 20l-8-7V7"/><path d="M10 42h28"/><circle cx="15" cy="12" r="2"/><circle cx="33" cy="7" r="2"/><circle cx="36" cy="26" r="2"/></>,
     racoes:<><path d="M8 27h32l-4 12H12L8 27Z"/><path d="M13 27c2-5 20-5 22 0"/><circle cx="14" cy="13" r="2.4"/><circle cx="24" cy="9" r="2.4"/><circle cx="34" cy="15" r="2.4"/><circle cx="23" cy="18" r="2.4"/></>,
-    filtragem:<><rect x="13" y="7" width="22" height="34" rx="6"/><path d="M13 15h22M13 34h22M19 20c3-3 7 3 10 0M19 26c3-3 7 3 10 0"/><path d="M8 13c-4 3-4 8 0 11M40 30c4 3 4 8 0 11"/></>
+    filtragem:<><rect x="13" y="7" width="22" height="34" rx="6"/><path d="M13 15h22M13 34h22M19 20c3-3 7 3 10 0M19 26c3-3 7 3 10 0"/><path d="M8 13c-4 3-4 8 0 11M40 30c4 3 4 8 0 11"/></>,
+    tratamentos:<><rect x="16" y="8" width="16" height="32" rx="8"/><path d="M20 18h8M24 14v16"/></>
   };
-  return <svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{drawings[type]}</svg>;
+  return <svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{drawings[type]||drawings.peixes}</svg>;
 }
 
 function ProductCard({item,onOpen,onAdd,onBuy}){
@@ -417,9 +398,26 @@ function CheckoutResult({status,onHome,onCart,onAccount}){
   </div></section>;
 }
 
+function CategoryMenu({open,categories,onOpen,onClose}){
+  if(!open) return null;
+  return createPortal(<div className="category-menu">
+    <button className="category-menu-backdrop" onClick={onClose} aria-label="Fechar categorias"/>
+    <div className="category-menu-panel">
+      <header>
+        <div><span className="eyebrow">CATEGORIAS</span><h2>Comprar por categoria</h2></div>
+        <button type="button" onClick={onClose} aria-label="Fechar"><X size={18}/></button>
+      </header>
+      <nav>{categories.map(category=><button key={category.slug} type="button" onClick={()=>onOpen(category.slug)}><span className="category-icon"><CategoryGlyph type={category.slug}/></span><div><b>{category.name}</b><small>{category.description||'Seleção Valente Fish'}</small></div><ArrowRight size={16}/></button>)}</nav>
+    </div>
+  </div>,document.body);
+}
+
 function Shop({notify}){
   const [query,setQuery]=useState('');
   const [routePath,setRoutePath]=useState(window.location.pathname);
+  const [catalogProducts,setCatalogProducts]=useState(storeProducts);
+  const [catalogCategories,setCatalogCategories]=useState(fallbackCategories);
+  const [categoryMenuOpen,setCategoryMenuOpen]=useState(false);
   const [cartItems,setCartItems]=useState(loadCart);
   const [session,setSession]=useState(null);
   const [authReady,setAuthReady]=useState(false);
@@ -430,15 +428,34 @@ function Shop({notify}){
   const [quantity,setQuantity]=useState(1);
   const [cartNotice,setCartNotice]=useState(null);
   const [miniCartOpen,setMiniCartOpen]=useState(false);
-  const storePage=storePageFromPath(routePath);
-  const category=pageCategories[storePage]||'Todos';
-  const products=storeProducts.filter(item=>(category==='Todos'||item.category===category)&&item.name.toLowerCase().includes(query.toLowerCase()));
-  const featuredProducts=[storeProducts[0],storeProducts[1],storeProducts[2],storeProducts[7]];
-  const selectedProduct=storePage==='produto'?storeProducts.find(item=>productSlug(item.name)===routePath.split('/').pop()):null;
-  const selectedInfo=selectedProduct?categoryInfo[selectedProduct.category]:null;
-  const relatedProducts=selectedProduct?storeProducts.filter(item=>item!==selectedProduct&&item.category===selectedProduct.category).slice(0,3):[];
+  const storePage=storePageFromPath(routePath,catalogCategories);
+  const activeCategory=activeCategoryFromPath(routePath,catalogCategories);
+  const category=activeCategory?.name||'Todos';
+  const products=catalogProducts.filter(item=>{
+    const matchesCategory=!activeCategory||item.categorySlug===activeCategory.slug||item.category===activeCategory.name;
+    return matchesCategory&&item.name.toLowerCase().includes(query.toLowerCase());
+  });
+  const featuredProducts=(catalogProducts.some(item=>item.featured)?catalogProducts.filter(item=>item.featured):catalogProducts).slice(0,FEATURED_LIMIT);
+  const selectedSlug=routePath.split('/').pop();
+  const selectedProduct=storePage==='produto'?catalogProducts.find(item=>(item.slug||productSlug(item.name))===selectedSlug):null;
+  const selectedInfo=selectedProduct?{
+    description:selectedProduct.description||categoryInfo[selectedProduct.category]?.description||'Produto selecionado pela equipe Valente Fish.',
+    details:categoryInfo[selectedProduct.category]?.details||['Produto original','Estoque da loja','Suporte especializado']
+  }:null;
+  const relatedProducts=selectedProduct?catalogProducts.filter(item=>item!==selectedProduct&&item.category===selectedProduct.category).slice(0,3):[];
   const nextPath=()=>new URLSearchParams(window.location.search).get('next')||sessionStorage.getItem('vf-next')||'/conta';
   useEffect(()=>{const onPopState=()=>{setRoutePath(window.location.pathname);window.scrollTo(0,0)};window.addEventListener('popstate',onPopState);return()=>window.removeEventListener('popstate',onPopState)},[]);
+  useEffect(()=>{
+    loadCatalog().then(data=>{
+      if(data.products?.length) setCatalogProducts(data.products);
+      if(data.categories?.length) setCatalogCategories(data.categories);
+    }).catch(()=>{});
+  },[]);
+  useEffect(()=>{
+    track('page_view');
+    if(storePage==='carrinho') track('cart_view');
+    if(storePage==='checkout') track('checkout');
+  },[routePath]);
   useEffect(()=>{
     let stop=()=>{};
     currentSession().then(async user=>{
@@ -463,12 +480,13 @@ function Shop({notify}){
   const goStoreBack=()=>{
     if(['checkout','sucesso','pendente','falha'].includes(storePage)) return navigateTo('/carrinho');
     if(storePage==='produto') return navigateStore('produtos');
-    if(['entrar','criar-conta','conta'].includes(storePage)) return navigateStore('home');
+    if(['entrar','criar-conta','conta','categoria'].includes(storePage)) return navigateStore('home');
     navigateStore('home');
   };
-  const openProduct=item=>{const path=`/produto/${productSlug(item.name)}`;setQuantity(1);if(window.location.pathname!==path)window.history.pushState({},'',path);setRoutePath(path);window.scrollTo(0,0)};
-  const persistCart=items=>{setCartItems(saveCart(items));return items};
-  const addToCart=(product,amount=1,{open=true}={})=>{const items=persistCart(upsertCartItem(cartItems,{...product,slug:productSlug(product.name)},amount));setCartNotice({product,amount});if(open&&!['carrinho','checkout'].includes(storePage))setMiniCartOpen(true);return items};
+  const openCategory=slug=>{setCategoryMenuOpen(false);navigateTo(categoryPath(slug))};
+  const openProduct=item=>{const path=`/produto/${item.slug||productSlug(item.name)}`;setQuantity(1);if(window.location.pathname!==path)window.history.pushState({},'',path);setRoutePath(path);window.scrollTo(0,0)};
+  const persistCart=items=>{setCartItems(saveCart(items));trackCart(items);return items};
+  const addToCart=(product,amount=1,{open=true}={})=>{const items=persistCart(upsertCartItem(cartItems,{...product,slug:product.slug||productSlug(product.name)},amount));setCartNotice({product,amount});track('add_to_cart',{productName:product.name});if(open&&!['carrinho','checkout'].includes(storePage))setMiniCartOpen(true);return items};
   useEffect(()=>{if(!cartNotice||!miniCartOpen)return;const timer=setTimeout(()=>setCartNotice(null),6000);return()=>clearTimeout(timer)},[cartNotice,miniCartOpen]);
   useEffect(()=>{if(['carrinho','checkout'].includes(storePage))setMiniCartOpen(false)},[storePage]);
   const buyNow=(product,amount=1)=>{addToCart(product,amount,{open:false});navigateTo('/carrinho')};
@@ -570,10 +588,11 @@ function Shop({notify}){
     <header className="store-header">
       {storePage==='home'?<span className="store-back-spacer" aria-hidden="true"/>:<button className="store-back" onClick={goStoreBack} aria-label="Voltar"><ArrowLeft size={18}/></button>}
       <button className="store-logo-button" onClick={()=>navigateStore('home')} aria-label="Ir para o início"><img src="/valente-fish-logo.png" alt="Valente Fish" className="store-logo"/></button>
-      <div className="store-search"><Search size={19}/><input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')navigateStore('produtos')}} placeholder="Busque peixes, corais, rações e equipamentos..." aria-label="Buscar produtos"/></div>
+      <div className="store-search"><Search size={19}/><input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){if(query.trim())track('search',{query:query.trim()});navigateStore('produtos')}}} placeholder="Busque peixes, corais, rações e equipamentos..." aria-label="Buscar produtos"/></div>
       <div className="store-actions"><button className={['conta','entrar','criar-conta'].includes(storePage)?'active':''} onClick={()=>navigateTo(session?'/conta':'/conta/entrar')}><User size={20}/><span>{session?session.name.split(' ')[0]:'Entrar'}</span></button><button className={`cart-button${storePage==='carrinho'||miniCartOpen?' active':''}`} onClick={()=>setMiniCartOpen(true)}><ShoppingCart size={21}/><span>Carrinho</span>{cart>0&&<b>{cart}</b>}</button></div>
     </header>
-    <nav className="store-nav" aria-label="Menu da loja">{storeMenu.map(([id,label])=><button key={id} className={storePage===id||(storePage==='produto'&&id==='produtos')?'active':''} onClick={()=>navigateStore(id)}>{label}</button>)}</nav>
+    <nav className="store-nav" aria-label="Menu da loja">{storeMenu.map(([id,label])=><button key={id} className={storePage===id||(storePage==='produto'&&id==='produtos')?'active':''} onClick={()=>navigateStore(id)}>{label}</button>)}<button className={storePage==='categoria'||categoryMenuOpen?'active category-nav-button':''} onClick={()=>setCategoryMenuOpen(true)}><Menu size={16}/> Categorias</button></nav>
+    <CategoryMenu open={categoryMenuOpen} categories={catalogCategories} onOpen={openCategory} onClose={()=>setCategoryMenuOpen(false)}/>
 
     {storePage==='home'&&<><section className="store-hero editorial-hero">
       <video className="editorial-hero-video" src="/store/clips/coral-hero.mp4" autoPlay muted loop playsInline preload="auto" aria-label="Corais coloridos com peixes tropicais"/>
@@ -606,7 +625,7 @@ function Shop({notify}){
     <section className="store-section category-section">
       <div className="section-heading"><div><span className="eyebrow">ENCONTRE O QUE PRECISA</span><h2>Explore por categoria</h2></div><button onClick={()=>navigateStore('produtos')}>Ver catálogo completo <ArrowRight size={17}/></button></div>
       <div className="category-grid">
-        {[['peixes','Peixes','Animais selecionados'],['corais','Corais','Cores que transformam'],['racoes','Rações','Nutrição de qualidade'],['filtragem','Filtragem','Água limpa e saudável']].map(([page,name,text])=><button key={name} className={`category-card category-${page}`} onClick={()=>navigateStore(page)}><span className="category-icon"><CategoryGlyph type={page}/></span><div><b>{name}</b><small>{text}</small></div><ArrowRight size={18}/></button>)}
+        {catalogCategories.slice(0,4).map(item=><button key={item.slug} className={`category-card category-${item.slug}`} onClick={()=>openCategory(item.slug)}><span className="category-icon"><CategoryGlyph type={item.slug}/></span><div><b>{item.name}</b><small>{item.description||'Seleção Valente Fish'}</small></div><ArrowRight size={18}/></button>)}
       </div>
     </section>
 
@@ -632,13 +651,13 @@ function Shop({notify}){
     </section>
     </>}
 
-    {catalogPages.includes(storePage)&&<section key={storePage} className="store-page-hero" id="produtos">
-      <div className="section-heading"><div><span className="eyebrow">CATÁLOGO VALENTE FISH</span><h2>{category==='Todos'?'Todos os produtos':category}</h2><p>Seleção Valente Fish com estoque integrado e atendimento especializado.</p></div><span className="stock-live"><i/> Estoque sincronizado</span></div>
+    {(storePage==='produtos'||storePage==='categoria')&&<section key={routePath} className="store-page-hero" id="produtos">
+      <div className="section-heading"><div><span className="eyebrow">{storePage==='categoria'?'CATEGORIAS':'CATÁLOGO VALENTE FISH'}</span><h2>{category==='Todos'?'Todos os produtos':category}</h2><p>{activeCategory?.description||'Seleção Valente Fish com estoque integrado e atendimento especializado.'}</p></div><span className="stock-live"><i/> Estoque sincronizado</span></div>
       {products.length?<div className="store-products">{products.map(item=><ProductCard key={item.name} item={item} onOpen={openProduct} onAdd={addToCart} onBuy={buyNow}/>)}</div>:<div className="empty-products"><Search size={30}/><h3>Nenhum produto encontrado</h3><p>Tente buscar por outro termo ou categoria.</p><button onClick={()=>{setQuery('');navigateStore('produtos')}}>Limpar filtros</button></div>}
     </section>}
 
     {storePage==='produto'&&selectedProduct&&<main key={routePath} className="product-detail-page">
-      <div className="product-breadcrumb"><button onClick={()=>navigateStore('home')}>Início</button><span>/</span><button onClick={()=>navigateStore(Object.keys(pageCategories).find(key=>pageCategories[key]===selectedProduct.category)||'produtos')}>{selectedProduct.category}</button><span>/</span><b>{selectedProduct.name}</b></div>
+      <div className="product-breadcrumb"><button onClick={()=>navigateStore('home')}>Início</button><span>/</span><button onClick={()=>selectedProduct.categorySlug?openCategory(selectedProduct.categorySlug):navigateStore('produtos')}>{selectedProduct.category}</button><span>/</span><b>{selectedProduct.name}</b></div>
       <section className="product-detail-main">
         <div className="product-detail-gallery"><span className="product-detail-tag">{selectedProduct.tag||'Valente Fish'}</span><button className="product-detail-favorite" aria-label={`Favoritar ${selectedProduct.name}`}><Heart/></button><div className="product-detail-glow"/><img src={selectedProduct.image} alt={selectedProduct.name}/><small>Imagem ilustrativa. Consulte a disponibilidade do lote.</small></div>
         <div className="product-detail-info"><span className="eyebrow">{selectedProduct.category}</span><h1>{selectedProduct.name}</h1><div className="product-detail-rating"><div className="rating">{[1,2,3,4,5].map(n=><Star key={n} size={17} fill="currentColor"/>)}</div><span>5.0 • Produto selecionado</span></div><span className="product-availability"><i/> Disponível em estoque</span><p className="product-description">{selectedInfo.description}</p><div className="product-detail-price"><strong>{selectedProduct.price}</strong><span>ou em até 3x sem juros</span></div><div className="product-purchase"><div className="quantity-control"><button onClick={()=>setQuantity(value=>Math.max(1,value-1))} aria-label="Diminuir quantidade">−</button><b>{quantity}</b><button onClick={()=>setQuantity(value=>value+1)} aria-label="Aumentar quantidade">+</button></div><div className="product-actions"><button className="product-buy-button" onClick={()=>buyNow(selectedProduct,quantity)}>Comprar agora</button><button className="product-add-button" onClick={()=>addToCart(selectedProduct,quantity)}><ShoppingCart size={19}/> Adicionar ao carrinho</button></div></div><a className="product-help" href="https://api.whatsapp.com/send/?phone=5521987128089" target="_blank" rel="noreferrer"><MessageCircle size={18}/> Tirar dúvidas com um especialista</a><div className="product-detail-trust"><span><ShieldCheck/> Compra segura</span><span><Truck/> Envio especializado</span><span><BadgeCheck/> Procedência garantida</span></div></div>
@@ -658,7 +677,7 @@ function Shop({notify}){
 
     <section className="store-section reviews-section"><div><span className="eyebrow">QUEM CONHECE, RECOMENDA</span><h2>Experiências de quem vive o aquarismo</h2></div><div className="reviews-grid">{[['Luiz Felipe','Atendimento excelente e animais muito bem cuidados. Chegaram perfeitos!'],['Marina Costa','Equipe entende muito e ajudou em toda a montagem do meu aquário.'],['Carlos Eduardo','Produtos de qualidade, envio cuidadoso e suporte rápido pelo WhatsApp.']].map(([name,text])=><article key={name}><div className="rating">{[1,2,3,4,5].map(n=><Star key={n} size={16} fill="currentColor"/>)}</div><p>“{text}”</p><b>{name}</b><small>Cliente verificado</small></article>)}</div></section></>}
 
-    {storePage==='carrinho'&&<CartPage items={cartItems} suggestions={storeProducts.filter(item=>!cartItems.some(cart=>cart.slug===productSlug(item.name))).slice(0,4)} onOpen={openProduct} onAdd={addToCart} onQuantity={changeQuantity} onRemove={removeItem} onCheckout={()=>navigateTo(session?'/checkout':'/conta/entrar?next=/checkout')} onContinue={()=>navigateStore('produtos')}/>}
+    {storePage==='carrinho'&&<CartPage items={cartItems} suggestions={catalogProducts.filter(item=>!cartItems.some(cart=>(cart.slug||productSlug(cart.name))===(item.slug||productSlug(item.name)))).slice(0,4)} onOpen={openProduct} onAdd={addToCart} onQuantity={changeQuantity} onRemove={removeItem} onCheckout={()=>navigateTo(session?'/checkout':'/conta/entrar?next=/checkout')} onContinue={()=>navigateStore('produtos')}/>}
     {(storePage==='entrar'||storePage==='criar-conta'||(storePage==='conta'&&!session))&&<AuthPage mode={storePage==='criar-conta'?'criar-conta':'entrar'} busy={authBusy} error={authError} next={nextPath()} onSubmit={handleAuthSubmit} onGoogle={handleGoogle} onSwitch={()=>navigateTo((storePage==='criar-conta'?'/conta/entrar':'/conta/criar')+'?next='+encodeURIComponent(nextPath()))}/>}
     {storePage==='conta'&&session&&<AccountPage session={session} orders={orders} busy={authBusy} error={authError} onSave={handleSaveAccount} onLogout={handleLogout} onShop={()=>navigateStore('produtos')}/>}
     {storePage==='checkout'&&session&&<CheckoutPage items={cartItems} session={session} busy={checkoutBusy} onSubmit={submitCheckout} onCart={()=>navigateTo('/carrinho')}/>}
@@ -672,6 +691,15 @@ function Shop({notify}){
   </div>
 }
 
-function Plan(){const phases=[['01','Fundação e regras do negócio','Produtos, espécies, lotes, aquários, usuários, catálogo central e integrações.'],['02','ERP mobile e desktop','Cadastro por foto, IA, estoque, vendas, clientes e rastreabilidade.'],['03','Novo e-commerce integrado','Catálogo automático, carrinho, checkout, pagamentos, frete e baixa de estoque.'],['04','ChatBô e automações sociais','Atendimento omnichannel, gatilhos, DM, links, qualificação e transferência humana.'],['05','Publicação e inteligência','Publicações aprovadas e indicadores de campanhas, conversões e vendas.']];return <><div className="architecture">{[['Aquisição',['Instagram e Facebook','Comentários e Direct','WhatsApp']],['Atendimento',['ChatBô omnichannel','Automação tipo ManyChat','Atendimento humano']],['Operação',['ERP mobile + desktop','IA para identificação','Estoque, vendas e clientes']],['Venda e mídia',['Novo e-commerce','Instagram + Facebook','Telegram']]].map(([t,itens],i)=><Card key={t} title={`${i+1}. ${t}`}>{itens.map(x=><div className="archItem" key={x}>{x}</div>)}</Card>)}</div><Card title="Fases de implementação" className="topgap">{phases.map(([n,t,d])=><div className="phase" key={n}><strong>FASE {n}</strong><div><h3>{t}</h3><p>{d}</p></div></div>)}</Card></>}
-
-export default function App(){const [view,setView]=useState(()=>window.location.pathname.startsWith('/admin')?'overview':'shop');const [toast,setToast]=useState('');useEffect(()=>{const onPopState=()=>setView(window.location.pathname.startsWith('/admin')?'overview':'shop');window.addEventListener('popstate',onPopState);return()=>window.removeEventListener('popstate',onPopState)},[]);const go=next=>{const path=next==='shop'?'/':'/admin';if(window.location.pathname!==path)window.history.pushState({},'',path);setView(next)};const notify=m=>{setToast(m);setTimeout(()=>setToast(''),2400)};if(view==='shop')return <div className="store-shell"><Shop notify={notify}/><Toast message={toast}/></div>;const Content={overview:Overview,automation:Automation,inbox:Inbox,erp:ERP,plan:Plan}[view];return <div className="app"><aside><div className="brand"><img src="/valente-fish-logo.png" alt="Valente Fish"/></div><nav>{nav.map(([id,label,Icon])=><button key={id} className={view===id?'active':''} onClick={()=>go(id)}><Icon size={18}/>{label}</button>)}</nav><footer><i/>Todos os sistemas conectados<small>Protótipo comercial v1.0</small></footer></aside><main><header><div><h1>{views[view][0]}</h1><p>{views[view][1]}</p></div><button className="sync" onClick={()=>notify('Dados sincronizados')}><RefreshCw size={16}/> Sincronizar</button></header><Content go={go} notify={notify}/></main><div className="mobileNav">{nav.slice(0,5).map(([id,label,Icon])=><button key={id} className={view===id?'active':''} onClick={()=>go(id)}><Icon size={20}/><small>{label.split(' ')[0]}</small></button>)}</div><Toast message={toast}/></div>}
+export default function App(){
+  const [toast,setToast]=useState('');
+  const [isAdmin,setIsAdmin]=useState(()=>window.location.pathname.startsWith('/admin'));
+  useEffect(()=>{
+    const onPop=()=>setIsAdmin(window.location.pathname.startsWith('/admin'));
+    window.addEventListener('popstate',onPop);
+    return()=>window.removeEventListener('popstate',onPop);
+  },[]);
+  const notify=m=>{setToast(m);setTimeout(()=>setToast(''),2400)};
+  if(isAdmin) return <><ErpApp notify={notify}/><Toast message={toast}/></>;
+  return <div className="store-shell"><Shop notify={notify}/><Toast message={toast}/></div>;
+}
