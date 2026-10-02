@@ -1,5 +1,8 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {LayoutDashboard,MessageCircle,AtSign,Boxes,ShoppingBag,ClipboardCheck,RefreshCw,Camera,Check,ArrowRight,Search,ShoppingCart,User,Truck,ShieldCheck,BadgeCheck,Star,ArrowLeft,Heart,MessageSquareText} from 'lucide-react';
+import {createPortal} from 'react-dom';
+import {LayoutDashboard,MessageCircle,AtSign,Boxes,ShoppingBag,ClipboardCheck,RefreshCw,Camera,Check,ArrowRight,Search,ShoppingCart,User,Truck,ShieldCheck,BadgeCheck,Star,ArrowLeft,Heart,MessageSquareText,Trash2,LogOut,Package,MapPin,CreditCard,X} from 'lucide-react';
+import {api,cartCount,cartSubtotal,fallbackQuotes,formatPrice,loadCart,loadOrders,lookupCep,priceValue,saveCart,saveOrder,setCartQuantity,upsertCartItem} from './commerce';
+import {authMessage,currentSession,loadProfile,loginAccount as signInAccount,loginWithGoogle,logoutAccount as signOutAccount,onAuthChange,registerAccount as signUpAccount,updateAccount} from './auth';
 
 const views={
  overview:['Visão geral','Operação, atendimento e vendas em uma única estrutura.'],
@@ -110,8 +113,10 @@ const valenteStories=[
   ['97flI2idI4E','04',"Valente's Reef",'Uma nova luz sobre o reef']
 ];
 const storeMenu=[['home','Início','/'],['produtos','Produtos','/produtos'],['peixes','Peixes','/peixes'],['corais','Corais','/corais'],['racoes','Rações','/racoes'],['filtragem','Filtragem','/filtragem'],['tratamentos','Tratamentos','/tratamentos'],['orcamento','Orçamento','/orcamento']];
+const commerceRoutes={'/conta':'conta','/conta/entrar':'entrar','/conta/criar':'criar-conta','/carrinho':'carrinho','/checkout':'checkout','/checkout/sucesso':'sucesso','/checkout/pendente':'pendente','/checkout/falha':'falha'};
+const catalogPages=['produtos','peixes','corais','racoes','filtragem','tratamentos'];
 const productSlug=name=>name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
-const storePageFromPath=path=>path.startsWith('/produto/')?'produto':storeMenu.find(([, ,menuPath])=>menuPath===path)?.[0]||'home';
+const storePageFromPath=path=>path.startsWith('/produto/')?'produto':commerceRoutes[path]||storeMenu.find(([, ,menuPath])=>menuPath===path)?.[0]||'home';
 const pageCategories={peixes:'Peixes',corais:'Corais',racoes:'Rações',filtragem:'Filtragem',tratamentos:'Tratamentos'};
 const categoryInfo={
   Peixes:{description:'Exemplar selecionado pela equipe Valente Fish, acompanhado de perto e preparado para uma adaptação segura ao novo aquário.',details:['Animal quarentenado','Alimentação acompanhada','Suporte para aclimatação','Foto ilustrativa do lote']},
@@ -131,11 +136,311 @@ function CategoryGlyph({type}){
   return <svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{drawings[type]}</svg>;
 }
 
+function ProductCard({item,onOpen,onAdd,onBuy}){
+  return <article className="store-product">
+    {item.tag&&<span className="product-tag">{item.tag}</span>}
+    <button className="favorite" aria-label={`Favoritar ${item.name}`}><Heart size={18}/></button>
+    <div className="store-product-image"><button className="product-open-image" onClick={()=>onOpen(item)} aria-label={`Ver detalhes de ${item.name}`}><img src={item.image} alt={item.name} loading="lazy"/></button></div>
+    <div className="store-product-body">
+      <small>{item.category}</small>
+      <h3><button className="product-name-button" onClick={()=>onOpen(item)}>{item.name}</button></h3>
+      <div className="rating">{[1,2,3,4,5].map(n=><Star key={n} size={14} fill="currentColor"/>)}<span>5.0</span></div>
+      <strong>{item.price}</strong>
+      <span className="installment">ou 3x sem juros</span>
+      <div className="product-actions">
+        <button className="product-buy-button" onClick={()=>onBuy(item)}>Comprar</button>
+        <button className="product-cart-button" onClick={()=>onAdd(item)}><ShoppingCart size={16}/> Adicionar ao carrinho</button>
+      </div>
+    </div>
+  </article>;
+}
+
+function QuantityStepper({value,onChange,label}){
+  return <div className="quantity-control"><button type="button" onClick={()=>onChange(value-1)} aria-label={`Diminuir ${label||''}`}>−</button><b>{value}</b><button type="button" onClick={()=>onChange(value+1)} aria-label={`Aumentar ${label||''}`}>+</button></div>;
+}
+
+function CommerceTrust(){
+  return <ul className="commerce-trust">
+    <li><ShieldCheck size={16}/> Compra segura</li>
+    <li><Truck size={16}/> Envio especializado</li>
+    <li><BadgeCheck size={16}/> Procedência garantida</li>
+  </ul>;
+}
+
+function SuggestRail({title,items,onOpen,onAdd}){
+  if(!items?.length) return null;
+  return <section className="suggest-rail">
+    <div><span className="eyebrow">APROVEITE TAMBÉM</span><h2>{title}</h2></div>
+    <div className="suggest-track">{items.map(item=><article key={item.name}>
+      <button type="button" className="suggest-open" onClick={()=>onOpen(item)}>
+        <img src={item.image} alt=""/>
+        <small>{item.category}</small>
+        <b>{item.name}</b>
+        <strong>{item.price}</strong>
+      </button>
+      {onAdd&&<button type="button" className="suggest-add" onClick={()=>onAdd(item)}><ShoppingCart size={14}/> Adicionar</button>}
+    </article>)}</div>
+  </section>;
+}
+
+function CartPage({items,suggestions,onOpen,onAdd,onQuantity,onRemove,onCheckout,onContinue}){
+  const units=cartCount(items);
+  const skuCount=items.length;
+  const subtotal=cartSubtotal(items);
+  if(!items.length) return <section className="commerce-page cart-page">
+    <div className="commerce-empty">
+      <ShoppingCart size={36}/>
+      <h1>Seu carrinho está vazio</h1>
+      <p>Adicione um produto para revisar quantidades, ver o frete e fechar a compra.</p>
+      <button type="button" onClick={onContinue}>Ver catálogo</button>
+    </div>
+    <SuggestRail title="Comece por estes destaques" items={suggestions} onOpen={onOpen} onAdd={onAdd}/>
+  </section>;
+  return <section className="commerce-page cart-page">
+    <div className="commerce-heading">
+      <div><span className="eyebrow">SEU PEDIDO</span><h1>Carrinho</h1></div>
+      <p>{skuCount} {skuCount===1?'produto':'produtos'} • {units} {units===1?'unidade':'unidades'}</p>
+    </div>
+    <div className="cart-layout">
+      <ul className="cart-list">{items.map(item=>{
+        const line=priceValue(item.price)*item.quantity;
+        return <li key={item.slug}>
+          <button type="button" className="cart-item-image" onClick={()=>onOpen(item)} aria-label={`Ver ${item.name}`}>
+            <img src={item.image} alt=""/>
+          </button>
+          <div className="cart-item-copy">
+            <small>{item.category}</small>
+            <button type="button" className="product-name-button" onClick={()=>onOpen(item)}>{item.name}</button>
+            <span>{item.price} <i>a unidade</i></span>
+            <span>ou 3x de {formatPrice(line/3)} sem juros</span>
+          </div>
+          <div className="cart-item-tools">
+            <QuantityStepper value={item.quantity} onChange={next=>onQuantity(item.slug,next)} label={item.name}/>
+            <em>{formatPrice(line)}</em>
+            <button type="button" className="cart-remove" onClick={()=>onRemove(item.slug)} aria-label={`Remover ${item.name}`}><Trash2 size={15}/> Remover</button>
+          </div>
+        </li>;
+      })}</ul>
+      <aside className="cart-summary">
+        <span className="eyebrow">RESUMO DO PEDIDO</span>
+        <p><span>Produtos ({units})</span><b>{formatPrice(subtotal)}</b></p>
+        <p><span>Frete</span><small>calculado no checkout</small></p>
+        <strong><span>Total</span>{formatPrice(subtotal)}</strong>
+        <small className="cart-summary-note">Em até 3x de {formatPrice(subtotal/3)} sem juros</small>
+        <button type="button" className="product-buy-button" onClick={onCheckout}>Fechar compra <ArrowRight size={17}/></button>
+        <button type="button" className="commerce-ghost" onClick={onContinue}>Continuar comprando</button>
+        <CommerceTrust/>
+      </aside>
+    </div>
+    <SuggestRail title="Quem comprou estes itens também levou" items={suggestions} onOpen={onOpen} onAdd={onAdd}/>
+  </section>;
+}
+
+function CartDrawer({open,items,added,onClose,onQuantity,onRemove,onCart,onCheckout}){
+  useEffect(()=>{if(!open)return;const onKey=event=>{if(event.key==='Escape')onClose()};window.addEventListener('keydown',onKey);document.body.style.overflow='hidden';document.body.classList.add('cart-open');return()=>{window.removeEventListener('keydown',onKey);document.body.style.overflow='';document.body.classList.remove('cart-open')}},[open,onClose]);
+  const addedSlug=added?.product?productSlug(added.product.name):null;
+  return createPortal(<div className={`cart-drawer-root${open?' open':''}`} aria-hidden={!open}>
+    <button className="cart-drawer-backdrop" onClick={onClose} tabIndex={open?0:-1} aria-label="Fechar carrinho"/>
+    <div className="cart-drawer" role="dialog" aria-modal="true" aria-label="Carrinho">
+      <header className="cart-drawer-head">
+        <div><small>Seu carrinho</small><h2>{cartCount(items)} {cartCount(items)===1?'item':'itens'}</h2></div>
+        <button onClick={onClose} aria-label="Fechar"><X size={18}/></button>
+      </header>
+      {added&&<div className="cart-drawer-added" role="status"><Check size={16}/> <span><b>{added.product.name}</b> adicionado</span></div>}
+      {items.length?<>
+        <ul className="cart-drawer-list">{items.map(item=><li key={item.slug} className={item.slug===addedSlug?'just-added':''}>
+          <img src={item.image} alt=""/>
+          <div><b>{item.name}</b><small>{item.price} un.</small>
+            <div className="cart-drawer-tools">
+              <QuantityStepper value={item.quantity} onChange={next=>onQuantity(item.slug,next)} label={item.name}/>
+              <button type="button" className="cart-remove" onClick={()=>onRemove(item.slug)} aria-label={`Remover ${item.name}`}><Trash2 size={14}/></button>
+            </div>
+          </div>
+          <strong>{formatPrice(priceValue(item.price)*item.quantity)}</strong>
+        </li>)}</ul>
+        <div className="cart-drawer-foot">
+          <p><span>Subtotal</span><b>{formatPrice(cartSubtotal(items))}</b></p>
+          <small>Frete e prazo entram no checkout</small>
+          <button type="button" className="product-buy-button" onClick={onCheckout}>Fechar compra <ArrowRight size={16}/></button>
+          <button type="button" className="commerce-ghost" onClick={onCart}>Ver carrinho completo</button>
+        </div>
+      </>:<div className="cart-drawer-empty"><ShoppingCart size={28}/><p>Seu carrinho está vazio</p><button type="button" className="commerce-ghost" onClick={onClose}>Continuar comprando</button></div>}
+    </div>
+  </div>,document.body);
+}
+
+function GoogleIcon(){
+  return <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62Z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.71H.96v2.33A9 9 0 0 0 9 18Z"/><path fill="#FBBC05" d="M3.97 10.71A5.41 5.41 0 0 1 3.69 9c0-.59.1-1.17.28-1.71V4.96H.96A9 9 0 0 0 0 9c0 1.46.35 2.83.96 4.04l3.01-2.33Z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.96l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58Z"/></svg>;
+}
+
+function AuthPage({mode,busy,error,next,onSubmit,onGoogle,onSwitch}){
+  const [form,setForm]=useState({name:'',email:'',phone:'',password:''});
+  const update=event=>setForm(current=>({...current,[event.target.name]:event.target.value}));
+  const creating=mode==='criar-conta';
+  const toCheckout=String(next||'').includes('/checkout');
+  return <section className="commerce-page auth-page">
+    <div className="auth-layout">
+      <form className="commerce-card account-form" onSubmit={event=>{event.preventDefault();onSubmit(form)}}>
+        <span className="eyebrow">{creating?'NOVA CONTA':'ACESSE SUA CONTA'}</span>
+        <h1>{toCheckout?(creating?'Crie sua conta para finalizar':'Entre para finalizar a compra'):creating?'Criar conta':'Entrar'}</h1>
+        <p>{creating?'Use e-mail, telefone e senha para acompanhar pedidos e acelerar o checkout.':'Entre com Google ou e-mail. Seus dados ficam salvos para a próxima compra.'}</p>
+        <button type="button" className="google-button" onClick={()=>onGoogle(next)} disabled={busy}><GoogleIcon/> Continuar com Google</button>
+        <div className="auth-divider"><span>ou use e-mail</span></div>
+        {creating&&<label>Nome<input name="name" value={form.name} onChange={update} required placeholder="Seu nome"/></label>}
+        <label>E-mail<input name="email" type="email" value={form.email} onChange={update} required placeholder="voce@email.com"/></label>
+        {creating&&<label>Telefone / WhatsApp<input name="phone" type="tel" value={form.phone} onChange={update} required placeholder="(21) 99999-9999"/></label>}
+        <label>Senha<input name="password" type="password" value={form.password} onChange={update} required minLength={6} placeholder="Mínimo 6 caracteres"/></label>
+        {error&&<small className="commerce-error">{error}</small>}
+        <button type="submit" disabled={busy}>{busy?'Aguarde...':creating?'Criar conta':'Entrar e continuar'}</button>
+        <small>{creating?'Já tem conta?':'Ainda não tem conta?'} <button type="button" className="text-link" onClick={onSwitch}>{creating?'Entrar':'Criar conta'}</button></small>
+      </form>
+      <aside className="auth-benefits">
+        <span className="eyebrow">POR QUE CRIAR CONTA</span>
+        <h2>Checkout mais rápido e pedidos no mesmo lugar.</h2>
+        <ul>
+          <li><ShieldCheck size={18}/> Dados protegidos e compra segura</li>
+          <li><Package size={18}/> Acompanhe pedidos e status de envio</li>
+          <li><Truck size={18}/> Frete e endereço salvos para a próxima compra</li>
+          <li><BadgeCheck size={18}/> Atendimento com o histórico da sua conta</li>
+        </ul>
+      </aside>
+    </div>
+  </section>;
+}
+
+function AccountPage({session,orders,busy,error,onSave,onLogout,onCart,onShop,onCheckout}){
+  const [form,setForm]=useState({name:session?.name||'',phone:session?.phone||''});
+  useEffect(()=>setForm({name:session?.name||'',phone:session?.phone||''}),[session]);
+  const update=event=>setForm(current=>({...current,[event.target.name]:event.target.value}));
+  return <section className="commerce-page account-page">
+    <div className="commerce-heading">
+      <div><span className="eyebrow">MINHA CONTA</span><h1>Olá, {session.name.split(' ')[0]}</h1></div>
+      <p>Dados salvos para um checkout mais rápido e histórico de pedidos em um só lugar.</p>
+    </div>
+    <div className="account-shortcuts">
+      <button type="button" onClick={onCart}><ShoppingCart size={18}/> Carrinho</button>
+      <button type="button" onClick={onCheckout}><CreditCard size={18}/> Checkout</button>
+      <button type="button" onClick={onShop}><ShoppingBag size={18}/> Catálogo</button>
+      <button type="button" className="commerce-ghost" onClick={onLogout}><LogOut size={18}/> Sair</button>
+    </div>
+    <div className="account-grid">
+      <article className="commerce-card">
+        <span className="eyebrow">DADOS DO CLIENTE</span>
+        <div className="account-profile">{session.avatar&&<img className="account-avatar" src={session.avatar} alt=""/>}<p><b>{session.name}</b><small>{session.email}</small><small>{session.provider==='google'?'Conectado com Google':'Conta com e-mail'}</small></p></div>
+        <form className="account-form" onSubmit={event=>{event.preventDefault();onSave(form)}}>
+          <label>Nome<input name="name" value={form.name} onChange={update} required/></label>
+          <label>E-mail<input value={session.email} readOnly/></label>
+          <label>Telefone / WhatsApp<input name="phone" type="tel" value={form.phone} onChange={update} required placeholder="(21) 99999-9999"/></label>
+          {error&&<small className="commerce-error">{error}</small>}
+          <button type="submit" disabled={busy}>{busy?'Salvando...':'Salvar dados'}</button>
+        </form>
+      </article>
+      <article className="commerce-card">
+        <span className="eyebrow">MEUS PEDIDOS</span>
+        {orders.length?orders.map(order=><div className="account-order" key={order.id}>
+          <div className="account-order-thumbs">{(order.items||[]).slice(0,3).map(item=><img key={item.slug||item.name} src={item.image} alt=""/>)}</div>
+          <div><b>Pedido {order.number}</b><small>{new Date(order.createdAt).toLocaleDateString('pt-BR')} • {order.items?.length||0} {(order.items?.length||0)===1?'item':'itens'} • {formatPrice(order.total)}</small></div>
+          <em>{order.status}</em>
+        </div>):<p className="commerce-muted">Nenhum pedido ainda. Quando você fechar uma compra, o status aparece aqui.</p>}
+        <div className="account-actions"><button type="button" onClick={onShop}>Continuar comprando</button></div>
+      </article>
+    </div>
+  </section>;
+}
+
+function CheckoutPage({items,session,busy,onSubmit,onCart}){
+  const [form,setForm]=useState({name:session?.name||'',email:session?.email||'',phone:session?.phone||'',postalCode:'',street:'',number:'',complement:'',district:'',city:'',state:'',shippingId:'standard'});
+  const [quotes,setQuotes]=useState(fallbackQuotes);
+  const [cepError,setCepError]=useState('');
+  useEffect(()=>{if(!session)return;setForm(current=>({...current,name:current.name||session.name,email:current.email||session.email,phone:current.phone||session.phone}))},[session]);
+  const update=event=>setForm(current=>({...current,[event.target.name]:event.target.value}));
+  const shipping=quotes.find(quote=>quote.id===form.shippingId)||quotes[0];
+  const productsTotal=cartSubtotal(items);
+  const total=productsTotal+(shipping?.priceCents||0)/100;
+  const fillCep=async()=>{
+    try{
+      setCepError('');
+      const address=await lookupCep(form.postalCode);
+      setForm(current=>({...current,...address}));
+      try{
+        const payload=await api('/api/shipping/quote',{method:'POST',body:{postalCode:form.postalCode}});
+        if(payload.quotes?.length){
+          const next=payload.quotes.map(quote=>({...quote,id:quote.serviceId||quote.id}));
+          setQuotes(next);
+          setForm(current=>({...current,shippingId:next[0].id}));
+        }
+      }catch{
+        setQuotes(fallbackQuotes);
+      }
+    }catch(error){
+      setCepError(error.message);
+    }
+  };
+  if(!items.length) return <section className="commerce-page"><div className="commerce-empty"><ShoppingCart size={32}/><h1>Nada para finalizar</h1><p>Adicione um produto ao carrinho para fechar a compra.</p><button type="button" onClick={onCart}>Voltar ao carrinho</button></div></section>;
+  return <section className="commerce-page checkout-page">
+    <div className="commerce-heading">
+      <div><span className="eyebrow">CHECKOUT</span><h1>Fechar compra</h1></div>
+      <ol className="checkout-steps"><li className="done">Carrinho</li><li className="active">Entrega</li><li>Pagamento</li></ol>
+    </div>
+    <form className="checkout-grid" onSubmit={event=>{event.preventDefault();onSubmit({...form,shipping})}}>
+      <div className="commerce-card">
+        <span className="eyebrow">1. SEUS DADOS</span>
+        <div className="checkout-user"><b>{session.name}</b><small>{session.email}{session.phone?` • ${session.phone}`:''}</small></div>
+        <label>Nome<input name="name" value={form.name} onChange={update} required/></label>
+        <label>E-mail<input name="email" type="email" value={form.email} readOnly required/></label>
+        <label>WhatsApp<input name="phone" type="tel" value={form.phone} onChange={update} required placeholder="(21) 99999-9999"/></label>
+        <span className="eyebrow">2. ENTREGA</span>
+        <div className="checkout-cep"><label>CEP<input name="postalCode" value={form.postalCode} onChange={event=>setForm(current=>({...current,postalCode:event.target.value.replace(/\D/g,'').slice(0,8).replace(/(\d{5})(\d)/,'$1-$2')}))} required placeholder="00000-000" inputMode="numeric"/></label><button type="button" onClick={fillCep}><MapPin size={16}/> Buscar CEP</button></div>
+        {cepError&&<small className="commerce-error">{cepError}</small>}
+        <label>Rua<input name="street" value={form.street} onChange={update} required/></label>
+        <div className="checkout-split"><label>Número<input name="number" value={form.number} onChange={update} required/></label><label>Complemento<input name="complement" value={form.complement} onChange={update}/></label></div>
+        <label>Bairro<input name="district" value={form.district} onChange={update} required/></label>
+        <div className="checkout-split"><label>Cidade<input name="city" value={form.city} onChange={update} required/></label><label>UF<input name="state" value={form.state} onChange={update} required maxLength={2}/></label></div>
+        <span className="eyebrow">3. FRETE</span>
+        <div className="shipping-options">{quotes.map(quote=><label key={quote.id} className={form.shippingId===quote.id?'active':''}><input type="radio" name="shippingId" value={quote.id} checked={form.shippingId===quote.id} onChange={update}/><span><b>{quote.serviceName}</b><small>{quote.companyName} • {quote.priceCents===0?'Retirada em Sulacap':`${quote.deliveryMinDays}-${quote.deliveryMaxDays} dias úteis`}</small></span><strong>{quote.priceCents?formatPrice(quote.priceCents/100):'Grátis'}</strong></label>)}</div>
+      </div>
+      <aside className="commerce-card cart-summary">
+        <span className="eyebrow">SEU PEDIDO</span>
+        <ul className="checkout-items">{items.map(item=><li key={item.slug}><img src={item.image} alt=""/><div><b>{item.name}</b><small>{item.quantity} un. • {item.price}</small></div><strong>{formatPrice(priceValue(item.price)*item.quantity)}</strong></li>)}</ul>
+        <p><span>Produtos</span><b>{formatPrice(productsTotal)}</b></p>
+        <p><span>Frete</span><b>{shipping?.priceCents?formatPrice(shipping.priceCents/100):'Grátis'}</b></p>
+        <strong><span>Total</span>{formatPrice(total)}</strong>
+        <button type="submit" disabled={busy}><CreditCard size={18}/>{busy?'Processando...':'Ir para pagamento'}</button>
+        <button type="button" className="commerce-ghost" onClick={onCart}>Voltar ao carrinho</button>
+        <CommerceTrust/>
+      </aside>
+    </form>
+  </section>;
+}
+
+function CheckoutResult({status,onHome,onCart,onAccount}){
+  const copy={
+    sucesso:['Pedido recebido','Pagamento e entrega serão confirmados em seguida. Você já pode acompanhar o pedido na sua conta.'],
+    pendente:['Pagamento pendente','Assim que o pagamento for confirmado, o pedido segue para separação e envio.'],
+    falha:['Não foi possível concluir','Revise os dados ou tente novamente. Seu carrinho foi mantido.']
+  }[status];
+  return <section className="commerce-page checkout-result-page"><div className="commerce-empty">
+    <Package size={36}/>
+    <h1>{copy[0]}</h1>
+    <p>{copy[1]}</p>
+    <ol className="checkout-steps"><li className="done">Carrinho</li><li className="done">Entrega</li><li className={status==='falha'?'':'active'}>Pagamento</li></ol>
+    <div className="account-actions"><button type="button" onClick={onHome}>Voltar à loja</button>{status==='falha'?<button type="button" className="commerce-ghost" onClick={onCart}>Voltar ao carrinho</button>:<button type="button" className="commerce-ghost" onClick={onAccount}>Acompanhar pedido</button>}</div>
+  </div></section>;
+}
+
 function Shop({notify,go}){
   const [query,setQuery]=useState('');
   const [routePath,setRoutePath]=useState(window.location.pathname);
-  const [cart,setCart]=useState(0);
+  const [cartItems,setCartItems]=useState(loadCart);
+  const [session,setSession]=useState(null);
+  const [authReady,setAuthReady]=useState(false);
+  const [authBusy,setAuthBusy]=useState(false);
+  const [authError,setAuthError]=useState('');
+  const [orders,setOrders]=useState(loadOrders);
+  const [checkoutBusy,setCheckoutBusy]=useState(false);
   const [quantity,setQuantity]=useState(1);
+  const [cartNotice,setCartNotice]=useState(null);
+  const [miniCartOpen,setMiniCartOpen]=useState(false);
   const storePage=storePageFromPath(routePath);
   const category=pageCategories[storePage]||'Todos';
   const products=storeProducts.filter(item=>(category==='Todos'||item.category===category)&&item.name.toLowerCase().includes(query.toLowerCase()));
@@ -143,11 +448,125 @@ function Shop({notify,go}){
   const selectedProduct=storePage==='produto'?storeProducts.find(item=>productSlug(item.name)===routePath.split('/').pop()):null;
   const selectedInfo=selectedProduct?categoryInfo[selectedProduct.category]:null;
   const relatedProducts=selectedProduct?storeProducts.filter(item=>item!==selectedProduct&&item.category===selectedProduct.category).slice(0,3):[];
+  const nextPath=()=>new URLSearchParams(window.location.search).get('next')||sessionStorage.getItem('vf-next')||'/conta';
   useEffect(()=>{const onPopState=()=>{setRoutePath(window.location.pathname);window.scrollTo(0,0)};window.addEventListener('popstate',onPopState);return()=>window.removeEventListener('popstate',onPopState)},[]);
-  const navigateTo=path=>{if(path===routePath)return;if(window.location.pathname!==path)window.history.pushState({},'',path);setRoutePath(path);window.scrollTo(0,0)};
+  useEffect(()=>{
+    let stop=()=>{};
+    currentSession().then(async user=>{
+      setSession(user?await loadProfile().catch(()=>user):null);
+      setAuthReady(true);
+    }).catch(()=>setAuthReady(true));
+    try{stop=onAuthChange(async user=>setSession(user?await loadProfile().catch(()=>user):null))}catch{setAuthReady(true)}
+    return ()=>stop();
+  },[]);
+  useEffect(()=>{
+    if(!authReady) return;
+    const next=nextPath();
+    if(!session&&storePage==='checkout') navigateTo(`/conta/entrar?next=/checkout`);
+    if(!session&&storePage==='conta') navigateTo(`/conta/entrar?next=/conta`);
+    if(session&&(storePage==='entrar'||storePage==='criar-conta')){
+      sessionStorage.removeItem('vf-next');
+      navigateTo(next.startsWith('/')?next:'/conta');
+    }
+  },[authReady,session,storePage]);
+  const navigateTo=path=>{const [pathname]=path.split('?');if(pathname===routePath&&path===window.location.pathname+(window.location.search||''))return;if(window.location.pathname+window.location.search!==path)window.history.pushState({},'',path);setRoutePath(pathname);window.scrollTo(0,0)};
   const navigateStore=page=>navigateTo(storeMenu.find(([id])=>id===page)?.[2]||'/');
   const openProduct=item=>{const path=`/produto/${productSlug(item.name)}`;setQuantity(1);if(window.location.pathname!==path)window.history.pushState({},'',path);setRoutePath(path);window.scrollTo(0,0)};
-  const addToCart=(name,amount=1)=>{setCart(value=>value+amount);notify(`${amount>1?`${amount} itens`:'Produto'} adicionado ao carrinho`)};
+  const persistCart=items=>{setCartItems(saveCart(items));return items};
+  const addToCart=(product,amount=1,{open=true}={})=>{const items=persistCart(upsertCartItem(cartItems,{...product,slug:productSlug(product.name)},amount));setCartNotice({product,amount});if(open&&!['carrinho','checkout'].includes(storePage))setMiniCartOpen(true);return items};
+  useEffect(()=>{if(!cartNotice||!miniCartOpen)return;const timer=setTimeout(()=>setCartNotice(null),6000);return()=>clearTimeout(timer)},[cartNotice,miniCartOpen]);
+  useEffect(()=>{if(['carrinho','checkout'].includes(storePage))setMiniCartOpen(false)},[storePage]);
+  const buyNow=(product,amount=1)=>{addToCart(product,amount,{open:false});navigateTo('/carrinho')};
+  const changeQuantity=(slug,next)=>persistCart(setCartQuantity(cartItems,slug,next));
+  const removeItem=slug=>persistCart(cartItems.filter(item=>item.slug!==slug));
+  const finishAuth=async user=>{
+    const profile=user?await loadProfile().catch(()=>user):null;
+    setSession(profile);
+    setAuthError('');
+    const next=nextPath();
+    sessionStorage.removeItem('vf-next');
+    navigateTo(next.startsWith('/')?next:'/conta');
+  };
+  const handleAuthSubmit=async form=>{
+    setAuthBusy(true);setAuthError('');
+    try{
+      if(storePage==='criar-conta'){
+        const result=await signUpAccount(form);
+        if(result.needsEmailConfirmation){
+          notify('Conta criada. Confirme seu e-mail para entrar.');
+          navigateTo('/conta/entrar');
+          return;
+        }
+        await finishAuth(result.session);
+        notify('Conta criada com sucesso');
+        return;
+      }
+      await finishAuth(await signInAccount(form));
+      notify('Login realizado');
+    }catch(error){
+      setAuthError(authMessage(error));
+    }finally{
+      setAuthBusy(false);
+    }
+  };
+  const handleGoogle=async next=>{
+    setAuthBusy(true);setAuthError('');
+    try{
+      sessionStorage.setItem('vf-next',next||nextPath());
+      await loginWithGoogle(next||nextPath());
+    }catch(error){
+      setAuthError(authMessage(error));
+      setAuthBusy(false);
+    }
+  };
+  const handleLogout=async()=>{
+    await signOutAccount().catch(()=>{});
+    setSession(null);
+    notify('Você saiu da conta');
+    navigateTo('/conta/entrar');
+  };
+  const handleSaveAccount=async form=>{
+    setAuthBusy(true);setAuthError('');
+    try{
+      setSession(await updateAccount(form));
+      notify('Dados atualizados');
+    }catch(error){
+      setAuthError(authMessage(error));
+    }finally{
+      setAuthBusy(false);
+    }
+  };
+  const submitCheckout=async form=>{
+    if(!session){navigateTo('/conta/entrar?next=/checkout');return}
+    setCheckoutBusy(true);
+    try{
+      await updateAccount({name:form.name,phone:form.phone}).catch(()=>{});
+      const payload=await api('/api/checkout',{method:'POST',body:{
+        customer:{name:form.name,email:form.email,phone:form.phone},
+        address:{postalCode:form.postalCode,street:form.street,number:form.number,complement:form.complement,district:form.district,city:form.city,state:form.state},
+        shippingQuoteId:form.shipping?.serviceId||form.shippingId
+      }});
+      persistCart([]);
+      if(payload.checkoutUrl){window.location.href=payload.checkoutUrl;return}
+      navigateTo('/checkout/sucesso');
+    }catch{
+      const order={
+        id:crypto.randomUUID(),
+        number:`VF${String(Date.now()).slice(-6)}`,
+        items:cartItems,
+        total:cartSubtotal(cartItems)+(form.shipping?.priceCents||0)/100,
+        status:'Recebido',
+        createdAt:new Date().toISOString()
+      };
+      setOrders(saveOrder(order));
+      persistCart([]);
+      notify('Pedido registrado. Pagamento online será conectado em seguida.');
+      navigateTo('/checkout/sucesso');
+    }finally{
+      setCheckoutBusy(false);
+    }
+  };
+  const cart=cartCount(cartItems);
   return <div className="storefront">
     {storePage==='home'&&<CinematicIntro/>}
     <AquariumEffects/>
@@ -157,7 +576,7 @@ function Shop({notify,go}){
       <button className="store-back" onClick={()=>go('overview')} title="Voltar ao ecossistema"><ArrowLeft size={18}/></button>
       <button className="store-logo-button" onClick={()=>navigateStore('home')} aria-label="Ir para o início"><img src="/valente-fish-logo.png" alt="Valente Fish" className="store-logo"/></button>
       <div className="store-search"><Search size={19}/><input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')navigateStore('produtos')}} placeholder="Busque peixes, corais, rações e equipamentos..." aria-label="Buscar produtos"/></div>
-      <div className="store-actions"><button><User size={20}/><span>Minha conta</span></button><button className="cart-button"><ShoppingCart size={21}/><span>Carrinho</span>{cart>0&&<b>{cart}</b>}</button></div>
+      <div className="store-actions"><button className={['conta','entrar','criar-conta'].includes(storePage)?'active':''} onClick={()=>navigateTo(session?'/conta':'/conta/entrar')}><User size={20}/><span>{session?session.name.split(' ')[0]:'Entrar'}</span></button><button className={`cart-button${storePage==='carrinho'||miniCartOpen?' active':''}`} onClick={()=>setMiniCartOpen(true)}><ShoppingCart size={21}/><span>Carrinho</span>{cart>0&&<b>{cart}</b>}</button></div>
     </header>
     <nav className="store-nav" aria-label="Menu da loja">{storeMenu.map(([id,label])=><button key={id} className={storePage===id||(storePage==='produto'&&id==='produtos')?'active':''} onClick={()=>navigateStore(id)}>{label}</button>)}</nav>
 
@@ -185,7 +604,7 @@ function Shop({notify,go}){
 
     <section className="store-section products-section conversion-products" id="produtos">
       <div className="section-heading"><div><span className="eyebrow">ESCOLHAS DA SEMANA</span><h2>Produtos em destaque</h2><p>Seleção pronta para você encontrar, escolher e comprar sem complicação.</p></div><button onClick={()=>navigateStore('produtos')}>Ver todos os produtos <ArrowRight size={17}/></button></div>
-      <div className="store-products">{featuredProducts.map(item=><article className="store-product" key={item.name}>{item.tag&&<span className="product-tag">{item.tag}</span>}<button className="favorite" aria-label={`Favoritar ${item.name}`}><Heart size={18}/></button><div className="store-product-image"><button className="product-open-image" onClick={()=>openProduct(item)} aria-label={`Ver detalhes de ${item.name}`}><img src={item.image} alt={item.name} loading="lazy"/></button></div><div className="store-product-body"><small>{item.category}</small><h3><button className="product-name-button" onClick={()=>openProduct(item)}>{item.name}</button></h3><div className="rating"><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><span>5.0</span></div><strong>{item.price}</strong><span className="installment">ou 3x sem juros</span><button onClick={()=>addToCart(item.name)}><ShoppingCart size={17}/> Adicionar ao carrinho</button></div></article>)}</div>
+      <div className="store-products">{featuredProducts.map(item=><ProductCard key={item.name} item={item} onOpen={openProduct} onAdd={addToCart} onBuy={buyNow}/>)}</div>
       <button className="conversion-catalog-cta" onClick={()=>navigateStore('produtos')}>Explorar catálogo completo <ArrowRight size={18}/></button>
     </section>
 
@@ -218,16 +637,16 @@ function Shop({notify,go}){
     </section>
     </>}
 
-    {storePage!=='home'&&storePage!=='orcamento'&&storePage!=='produto'&&<section key={storePage} className="store-page-hero" id="produtos">
+    {catalogPages.includes(storePage)&&<section key={storePage} className="store-page-hero" id="produtos">
       <div className="section-heading"><div><span className="eyebrow">CATÁLOGO VALENTE FISH</span><h2>{category==='Todos'?'Todos os produtos':category}</h2><p>Seleção Valente Fish com estoque integrado e atendimento especializado.</p></div><span className="stock-live"><i/> Estoque sincronizado</span></div>
-      {products.length?<div className="store-products">{products.map(item=><article className="store-product" key={item.name}>{item.tag&&<span className="product-tag">{item.tag}</span>}<button className="favorite" aria-label={`Favoritar ${item.name}`}><Heart size={18}/></button><div className="store-product-image"><button className="product-open-image" onClick={()=>openProduct(item)} aria-label={`Ver detalhes de ${item.name}`}><img src={item.image} alt={item.name} loading="lazy"/></button></div><div className="store-product-body"><small>{item.category}</small><h3><button className="product-name-button" onClick={()=>openProduct(item)}>{item.name}</button></h3><div className="rating"><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><span>5.0</span></div><strong>{item.price}</strong><span className="installment">ou 3x sem juros</span><button onClick={()=>addToCart(item.name)}><ShoppingCart size={17}/> Adicionar ao carrinho</button></div></article>)}</div>:<div className="empty-products"><Search size={30}/><h3>Nenhum produto encontrado</h3><p>Tente buscar por outro termo ou categoria.</p><button onClick={()=>{setQuery('');navigateStore('produtos')}}>Limpar filtros</button></div>}
+      {products.length?<div className="store-products">{products.map(item=><ProductCard key={item.name} item={item} onOpen={openProduct} onAdd={addToCart} onBuy={buyNow}/>)}</div>:<div className="empty-products"><Search size={30}/><h3>Nenhum produto encontrado</h3><p>Tente buscar por outro termo ou categoria.</p><button onClick={()=>{setQuery('');navigateStore('produtos')}}>Limpar filtros</button></div>}
     </section>}
 
     {storePage==='produto'&&selectedProduct&&<main key={routePath} className="product-detail-page">
       <div className="product-breadcrumb"><button onClick={()=>navigateStore('home')}>Início</button><span>/</span><button onClick={()=>navigateStore(Object.keys(pageCategories).find(key=>pageCategories[key]===selectedProduct.category)||'produtos')}>{selectedProduct.category}</button><span>/</span><b>{selectedProduct.name}</b></div>
       <section className="product-detail-main">
         <div className="product-detail-gallery"><span className="product-detail-tag">{selectedProduct.tag||'Valente Fish'}</span><button className="product-detail-favorite" aria-label={`Favoritar ${selectedProduct.name}`}><Heart/></button><div className="product-detail-glow"/><img src={selectedProduct.image} alt={selectedProduct.name}/><small>Imagem ilustrativa. Consulte a disponibilidade do lote.</small></div>
-        <div className="product-detail-info"><span className="eyebrow">{selectedProduct.category}</span><h1>{selectedProduct.name}</h1><div className="product-detail-rating"><div className="rating">{[1,2,3,4,5].map(n=><Star key={n} size={17} fill="currentColor"/>)}</div><span>5.0 • Produto selecionado</span></div><span className="product-availability"><i/> Disponível em estoque</span><p className="product-description">{selectedInfo.description}</p><div className="product-detail-price"><strong>{selectedProduct.price}</strong><span>ou em até 3x sem juros</span></div><div className="product-purchase"><div className="quantity-control"><button onClick={()=>setQuantity(value=>Math.max(1,value-1))} aria-label="Diminuir quantidade">−</button><b>{quantity}</b><button onClick={()=>setQuantity(value=>value+1)} aria-label="Aumentar quantidade">+</button></div><button className="product-add-button" onClick={()=>addToCart(selectedProduct.name,quantity)}><ShoppingCart size={19}/> Adicionar ao carrinho</button></div><a className="product-help" href="https://api.whatsapp.com/send/?phone=5521987128089" target="_blank" rel="noreferrer"><MessageCircle size={18}/> Tirar dúvidas com um especialista</a><div className="product-detail-trust"><span><ShieldCheck/> Compra segura</span><span><Truck/> Envio especializado</span><span><BadgeCheck/> Procedência garantida</span></div></div>
+        <div className="product-detail-info"><span className="eyebrow">{selectedProduct.category}</span><h1>{selectedProduct.name}</h1><div className="product-detail-rating"><div className="rating">{[1,2,3,4,5].map(n=><Star key={n} size={17} fill="currentColor"/>)}</div><span>5.0 • Produto selecionado</span></div><span className="product-availability"><i/> Disponível em estoque</span><p className="product-description">{selectedInfo.description}</p><div className="product-detail-price"><strong>{selectedProduct.price}</strong><span>ou em até 3x sem juros</span></div><div className="product-purchase"><div className="quantity-control"><button onClick={()=>setQuantity(value=>Math.max(1,value-1))} aria-label="Diminuir quantidade">−</button><b>{quantity}</b><button onClick={()=>setQuantity(value=>value+1)} aria-label="Aumentar quantidade">+</button></div><div className="product-actions"><button className="product-buy-button" onClick={()=>buyNow(selectedProduct,quantity)}>Comprar agora</button><button className="product-add-button" onClick={()=>addToCart(selectedProduct,quantity)}><ShoppingCart size={19}/> Adicionar ao carrinho</button></div></div><a className="product-help" href="https://api.whatsapp.com/send/?phone=5521987128089" target="_blank" rel="noreferrer"><MessageCircle size={18}/> Tirar dúvidas com um especialista</a><div className="product-detail-trust"><span><ShieldCheck/> Compra segura</span><span><Truck/> Envio especializado</span><span><BadgeCheck/> Procedência garantida</span></div></div>
       </section>
       <section className="product-detail-content"><article><span className="eyebrow">CONHEÇA O PRODUTO</span><h2>Descrição</h2><p>{selectedInfo.description}</p><p>Nossa equipe acompanha a seleção, conservação e preparação de cada item para oferecer mais segurança antes, durante e depois da compra.</p></article><article><span className="eyebrow">INFORMAÇÕES IMPORTANTES</span><h2>Detalhes</h2><ul>{selectedInfo.details.map(detail=><li key={detail}><Check size={17}/>{detail}</li>)}</ul></article><article><span className="eyebrow">DA VALENTE ATÉ VOCÊ</span><h2>Entrega e cuidados</h2><p>O prazo e a modalidade de envio são definidos conforme o destino e o tipo de produto. Animais recebem embalagem e transporte específicos.</p><button onClick={()=>navigateStore('orcamento')}>Consultar entrega <ArrowRight size={17}/></button></article></section>
       {relatedProducts.length>0&&<section className="related-products"><div className="section-heading"><div><span className="eyebrow">VOCÊ TAMBÉM PODE GOSTAR</span><h2>Produtos relacionados</h2></div></div><div>{relatedProducts.map(item=><button key={item.name} onClick={()=>openProduct(item)}><span><img src={item.image} alt=""/></span><small>{item.category}</small><b>{item.name}</b><strong>{item.price}</strong><i>Ver detalhes <ArrowRight size={15}/></i></button>)}</div></section>}
@@ -244,9 +663,16 @@ function Shop({notify,go}){
 
     <section className="store-section reviews-section"><div><span className="eyebrow">QUEM CONHECE, RECOMENDA</span><h2>Experiências de quem vive o aquarismo</h2></div><div className="reviews-grid">{[['Luiz Felipe','Atendimento excelente e animais muito bem cuidados. Chegaram perfeitos!'],['Marina Costa','Equipe entende muito e ajudou em toda a montagem do meu aquário.'],['Carlos Eduardo','Produtos de qualidade, envio cuidadoso e suporte rápido pelo WhatsApp.']].map(([name,text])=><article key={name}><div className="rating">{[1,2,3,4,5].map(n=><Star key={n} size={16} fill="currentColor"/>)}</div><p>“{text}”</p><b>{name}</b><small>Cliente verificado</small></article>)}</div></section></>}
 
+    {storePage==='carrinho'&&<CartPage items={cartItems} suggestions={storeProducts.filter(item=>!cartItems.some(cart=>cart.slug===productSlug(item.name))).slice(0,4)} onOpen={openProduct} onAdd={addToCart} onQuantity={changeQuantity} onRemove={removeItem} onCheckout={()=>navigateTo(session?'/checkout':'/conta/entrar?next=/checkout')} onContinue={()=>navigateStore('produtos')}/>}
+    {(storePage==='entrar'||storePage==='criar-conta'||(storePage==='conta'&&!session))&&<AuthPage mode={storePage==='criar-conta'?'criar-conta':'entrar'} busy={authBusy} error={authError} next={nextPath()} onSubmit={handleAuthSubmit} onGoogle={handleGoogle} onSwitch={()=>navigateTo((storePage==='criar-conta'?'/conta/entrar':'/conta/criar')+'?next='+encodeURIComponent(nextPath()))}/>}
+    {storePage==='conta'&&session&&<AccountPage session={session} orders={orders} busy={authBusy} error={authError} onSave={handleSaveAccount} onLogout={handleLogout} onCart={()=>navigateTo('/carrinho')} onShop={()=>navigateStore('produtos')} onCheckout={()=>navigateTo('/checkout')}/>}
+    {storePage==='checkout'&&session&&<CheckoutPage items={cartItems} session={session} busy={checkoutBusy} onSubmit={submitCheckout} onCart={()=>navigateTo('/carrinho')}/>}
+    {(storePage==='sucesso'||storePage==='pendente'||storePage==='falha')&&<CheckoutResult status={storePage} onHome={()=>navigateStore('home')} onCart={()=>navigateTo('/carrinho')} onAccount={()=>navigateTo('/conta')}/>}
+
     {storePage==='orcamento'&&<section key={storePage} className="budget-page"><div className="budget-jelly" aria-hidden="true">◯</div><div className="budget-copy"><span className="eyebrow">ATENDIMENTO PERSONALIZADO</span><h1>Encontre o animal ou produto ideal.</h1><p>Conte o que você procura e um especialista da Valente Fish entrará em contato para orientar e preparar seu orçamento.</p><div className="budget-benefits"><span><BadgeCheck/> Orientação de aquaristas</span><span><ShieldCheck/> Animais com procedência</span><span><Truck/> Envio especializado</span></div></div><form className="budget-form" onSubmit={e=>{e.preventDefault();notify('Solicitação enviada com sucesso')}}><h2>Solicitar orçamento</h2><label>Nome<input required placeholder="Seu nome"/></label><label>WhatsApp<input required type="tel" placeholder="(21) 99999-9999"/></label><label>O que você procura?<select required defaultValue=""><option value="" disabled>Selecione uma categoria</option><option>Peixe</option><option>Coral</option><option>Ração</option><option>Equipamento</option><option>Outro produto</option></select></label><label>Detalhes<textarea rows="4" placeholder="Espécie, marca, tamanho ou qualquer informação importante"/></label><button type="submit">Enviar solicitação <ArrowRight size={18}/></button><a href="https://api.whatsapp.com/send/?phone=5521987128089" target="_blank" rel="noreferrer">Prefiro falar agora pelo WhatsApp</a></form></section>}
 
-    <footer className="store-footer"><div><img src="/valente-fish-logo.png" alt="Valente Fish"/><p>Referência em aquarismo marinho, animais selecionados e atendimento especializado.</p></div><div><b>Loja</b><button onClick={()=>navigateStore('produtos')}>Produtos</button><button onClick={()=>navigateStore('peixes')}>Peixes</button><button onClick={()=>navigateStore('corais')}>Corais</button></div><div><b>Atendimento</b><button onClick={()=>navigateStore('orcamento')}>Solicitar orçamento</button><span>Jardim Sulacap — RJ</span><span>Envio para todo o Brasil</span></div><div><b>Redes sociais</b><a href="https://www.instagram.com/valentefish/"><AtSign size={17}/> @valentefish</a><button onClick={()=>go('overview')}>Acessar painel do ecossistema</button></div></footer>
+    <footer className="store-footer"><div><img src="/valente-fish-logo.png" alt="Valente Fish"/><p>Referência em aquarismo marinho, animais selecionados e atendimento especializado.</p></div><div><b>Loja</b><button onClick={()=>navigateStore('produtos')}>Produtos</button><button onClick={()=>navigateTo('/carrinho')}>Carrinho</button><button onClick={()=>navigateTo('/conta')}>Minha conta</button></div><div><b>Atendimento</b><button onClick={()=>navigateStore('orcamento')}>Solicitar orçamento</button><span>Jardim Sulacap — RJ</span><span>Envio para todo o Brasil</span></div><div><b>Redes sociais</b><a href="https://www.instagram.com/valentefish/"><AtSign size={17}/> @valentefish</a><button onClick={()=>go('overview')}>Acessar painel do ecossistema</button></div></footer>
+    <CartDrawer open={miniCartOpen} items={cartItems} added={cartNotice} onClose={()=>setMiniCartOpen(false)} onQuantity={changeQuantity} onRemove={removeItem} onCart={()=>{setMiniCartOpen(false);navigateTo('/carrinho')}} onCheckout={()=>{setMiniCartOpen(false);navigateTo(session?'/checkout':'/conta/entrar?next=/checkout')}}/>
     <a className="store-whatsapp" href="https://api.whatsapp.com/send/?phone=5521987128089" target="_blank" rel="noreferrer" aria-label="Falar pelo WhatsApp">WA</a>
   </div>
 }
