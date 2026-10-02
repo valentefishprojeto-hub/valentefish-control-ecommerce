@@ -297,20 +297,18 @@ function AuthPage({mode,busy,error,next,onSubmit,onGoogle,onSwitch}){
   </section>;
 }
 
-function AccountPage({session,orders,busy,error,onSave,onLogout,onCart,onShop,onCheckout}){
+function AccountPage({session,orders,busy,error,onSave,onLogout,onShop}){
   const [form,setForm]=useState({name:session?.name||'',phone:session?.phone||''});
   useEffect(()=>setForm({name:session?.name||'',phone:session?.phone||''}),[session]);
   const update=event=>setForm(current=>({...current,[event.target.name]:event.target.value}));
   return <section className="commerce-page account-page">
     <div className="commerce-heading">
-      <div><span className="eyebrow">MINHA CONTA</span><h1>Olá, {session.name.split(' ')[0]}</h1></div>
-      <p>Dados salvos para um checkout mais rápido e histórico de pedidos em um só lugar.</p>
-    </div>
-    <div className="account-shortcuts">
-      <button type="button" onClick={onCart}><ShoppingCart size={18}/> Carrinho</button>
-      <button type="button" onClick={onCheckout}><CreditCard size={18}/> Checkout</button>
-      <button type="button" onClick={onShop}><ShoppingBag size={18}/> Catálogo</button>
-      <button type="button" className="commerce-ghost" onClick={onLogout}><LogOut size={18}/> Sair</button>
+      <div>
+        <span className="eyebrow">MINHA CONTA</span>
+        <h1>Olá, {session.name.split(' ')[0]}</h1>
+        <p>Seus dados e o histórico de pedidos ficam salvos aqui.</p>
+      </div>
+      <button type="button" className="account-logout" onClick={onLogout}><LogOut size={16}/> Sair</button>
     </div>
     <div className="account-grid">
       <article className="commerce-card">
@@ -330,8 +328,10 @@ function AccountPage({session,orders,busy,error,onSave,onLogout,onCart,onShop,on
           <div className="account-order-thumbs">{(order.items||[]).slice(0,3).map(item=><img key={item.slug||item.name} src={item.image} alt=""/>)}</div>
           <div><b>Pedido {order.number}</b><small>{new Date(order.createdAt).toLocaleDateString('pt-BR')} • {order.items?.length||0} {(order.items?.length||0)===1?'item':'itens'} • {formatPrice(order.total)}</small></div>
           <em>{order.status}</em>
-        </div>):<p className="commerce-muted">Nenhum pedido ainda. Quando você fechar uma compra, o status aparece aqui.</p>}
-        <div className="account-actions"><button type="button" onClick={onShop}>Continuar comprando</button></div>
+        </div>):<>
+          <p className="commerce-muted">Nenhum pedido ainda. Quando você fechar uma compra, o status aparece aqui.</p>
+          <div className="account-actions"><button type="button" onClick={onShop}>Continuar comprando</button></div>
+        </>}
       </article>
     </div>
   </section>;
@@ -660,7 +660,7 @@ function Shop({notify}){
 
     {storePage==='carrinho'&&<CartPage items={cartItems} suggestions={storeProducts.filter(item=>!cartItems.some(cart=>cart.slug===productSlug(item.name))).slice(0,4)} onOpen={openProduct} onAdd={addToCart} onQuantity={changeQuantity} onRemove={removeItem} onCheckout={()=>navigateTo(session?'/checkout':'/conta/entrar?next=/checkout')} onContinue={()=>navigateStore('produtos')}/>}
     {(storePage==='entrar'||storePage==='criar-conta'||(storePage==='conta'&&!session))&&<AuthPage mode={storePage==='criar-conta'?'criar-conta':'entrar'} busy={authBusy} error={authError} next={nextPath()} onSubmit={handleAuthSubmit} onGoogle={handleGoogle} onSwitch={()=>navigateTo((storePage==='criar-conta'?'/conta/entrar':'/conta/criar')+'?next='+encodeURIComponent(nextPath()))}/>}
-    {storePage==='conta'&&session&&<AccountPage session={session} orders={orders} busy={authBusy} error={authError} onSave={handleSaveAccount} onLogout={handleLogout} onCart={()=>navigateTo('/carrinho')} onShop={()=>navigateStore('produtos')} onCheckout={()=>navigateTo('/checkout')}/>}
+    {storePage==='conta'&&session&&<AccountPage session={session} orders={orders} busy={authBusy} error={authError} onSave={handleSaveAccount} onLogout={handleLogout} onShop={()=>navigateStore('produtos')}/>}
     {storePage==='checkout'&&session&&<CheckoutPage items={cartItems} session={session} busy={checkoutBusy} onSubmit={submitCheckout} onCart={()=>navigateTo('/carrinho')}/>}
     {(storePage==='sucesso'||storePage==='pendente'||storePage==='falha')&&<CheckoutResult status={storePage} onHome={()=>navigateStore('home')} onCart={()=>navigateTo('/carrinho')} onAccount={()=>navigateTo('/conta')}/>}
 
