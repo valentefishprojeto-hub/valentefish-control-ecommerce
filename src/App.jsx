@@ -117,6 +117,21 @@ function CategoryGlyph({type}){
   return <svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{drawings[type]||drawings.peixes}</svg>;
 }
 
+function ProductGallery({product}){
+  const items=product.media?.length?product.media:product.image?[{url:product.image,kind:'image'}]:[];
+  const [current,setCurrent]=useState(0);
+  const active=items[current]||items[0];
+  if(!active) return null;
+  return <div className="product-detail-gallery">
+    <span className="product-detail-tag">{product.tag||'Valente Fish'}</span>
+    <button className="product-detail-favorite" aria-label={`Favoritar ${product.name}`}><Heart/></button>
+    <div className="product-detail-glow"/>
+    {active.kind==='video'?<video key={active.url} src={active.url} controls playsInline/>:<img src={active.url} alt={product.name}/>}
+    {items.length>1&&<div className="product-detail-thumbs">{items.map((item,index)=><button key={item.url} type="button" className={index===current?'active':''} onClick={()=>setCurrent(index)} aria-label={item.kind==='video'?'Ver vídeo':'Ver imagem'}>{item.kind==='video'?<video src={item.url} muted/>:<img src={item.url} alt=""/>}</button>)}</div>}
+    <small>{items.length>1?'Fotos e vídeos do produto.':'Imagem ilustrativa. Consulte a disponibilidade do lote.'}</small>
+  </div>;
+}
+
 function ProductCard({item,onOpen,onAdd,onBuy}){
   return <article className="store-product">
     {item.tag&&<span className="product-tag">{item.tag}</span>}
@@ -659,7 +674,7 @@ function Shop({notify}){
     {storePage==='produto'&&selectedProduct&&<main key={routePath} className="product-detail-page">
       <div className="product-breadcrumb"><button onClick={()=>navigateStore('home')}>Início</button><span>/</span><button onClick={()=>selectedProduct.categorySlug?openCategory(selectedProduct.categorySlug):navigateStore('produtos')}>{selectedProduct.category}</button><span>/</span><b>{selectedProduct.name}</b></div>
       <section className="product-detail-main">
-        <div className="product-detail-gallery"><span className="product-detail-tag">{selectedProduct.tag||'Valente Fish'}</span><button className="product-detail-favorite" aria-label={`Favoritar ${selectedProduct.name}`}><Heart/></button><div className="product-detail-glow"/><img src={selectedProduct.image} alt={selectedProduct.name}/><small>Imagem ilustrativa. Consulte a disponibilidade do lote.</small></div>
+        <ProductGallery product={selectedProduct}/>
         <div className="product-detail-info"><span className="eyebrow">{selectedProduct.category}</span><h1>{selectedProduct.name}</h1><div className="product-detail-rating"><div className="rating">{[1,2,3,4,5].map(n=><Star key={n} size={17} fill="currentColor"/>)}</div><span>5.0 • Produto selecionado</span></div><span className="product-availability"><i/> Disponível em estoque</span><p className="product-description">{selectedInfo.description}</p><div className="product-detail-price"><strong>{selectedProduct.price}</strong><span>ou em até 3x sem juros</span></div><div className="product-purchase"><div className="quantity-control"><button onClick={()=>setQuantity(value=>Math.max(1,value-1))} aria-label="Diminuir quantidade">−</button><b>{quantity}</b><button onClick={()=>setQuantity(value=>value+1)} aria-label="Aumentar quantidade">+</button></div><div className="product-actions"><button className="product-buy-button" onClick={()=>buyNow(selectedProduct,quantity)}>Comprar agora</button><button className="product-add-button" onClick={()=>addToCart(selectedProduct,quantity)}><ShoppingCart size={19}/> Adicionar ao carrinho</button></div></div><a className="product-help" href="https://api.whatsapp.com/send/?phone=5521987128089" target="_blank" rel="noreferrer"><MessageCircle size={18}/> Tirar dúvidas com um especialista</a><div className="product-detail-trust"><span><ShieldCheck/> Compra segura</span><span><Truck/> Envio especializado</span><span><BadgeCheck/> Procedência garantida</span></div></div>
       </section>
       <section className="product-detail-content"><article><span className="eyebrow">CONHEÇA O PRODUTO</span><h2>Descrição</h2><p>{selectedInfo.description}</p><p>Nossa equipe acompanha a seleção, conservação e preparação de cada item para oferecer mais segurança antes, durante e depois da compra.</p></article><article><span className="eyebrow">INFORMAÇÕES IMPORTANTES</span><h2>Detalhes</h2><ul>{selectedInfo.details.map(detail=><li key={detail}><Check size={17}/>{detail}</li>)}</ul></article><article><span className="eyebrow">DA VALENTE ATÉ VOCÊ</span><h2>Entrega e cuidados</h2><p>O prazo e a modalidade de envio são definidos conforme o destino e o tipo de produto. Animais recebem embalagem e transporte específicos.</p><button onClick={()=>navigateStore('orcamento')}>Consultar entrega <ArrowRight size={17}/></button></article></section>

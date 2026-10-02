@@ -1,7 +1,8 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {createPortal} from 'react-dom';
-import {ArrowUpRight,AtSign,Boxes,Globe,LayoutDashboard,Package,Plus,Search,ShoppingBag,Store,Trash2,Users,Wallet,X} from 'lucide-react';
+import {ArrowUpRight,AtSign,Boxes,Globe,ImagePlus,LayoutDashboard,Package,Plus,Search,ShoppingBag,Store,Trash2,Users,Wallet,X} from 'lucide-react';
 import {api,formatPrice} from './commerce';
+import {getSupabase} from './supabaseClient';
 import {FEATURED_LIMIT,moneyInput} from './catalog';
 
 const groups=[
@@ -37,7 +38,7 @@ function Modal({open,title,onClose,children,wide}){
   if(!open) return null;
   return createPortal(<div className="erp-modal">
     <button className="erp-modal-backdrop" onClick={onClose} aria-label="Fechar"/>
-    <section className={`erp-drawer${wide?' wide':''}`}>
+    <section className={`erp-dialog${wide?' wide':''}`}>
       <header><div><span className="eyebrow">CADASTRO</span><h2>{title}</h2></div><button type="button" onClick={onClose} aria-label="Fechar"><X size={18}/></button></header>
       <div className="erp-drawer-body">{children}</div>
     </section>
@@ -52,18 +53,41 @@ function Toolbar({search,onSearch,placeholder,filters,filter,onFilter,action}){
   </div>;
 }
 
-function ProductForm({categories,initial,busy,onSubmit}){
+function ProductForm({categories,initial,busy,onSubmit,notify}){
   const [form,setForm]=useState(()=>({
     name:initial?.name||'',sku:initial?.sku||'',categoryId:initial?.categoryId||categories[0]?.id||'',
     price:initial?moneyInput(initial.priceCents):'',stockQuantity:initial?.stockQuantity??0,
-    imageUrl:initial?.imageUrl||'',badge:initial?.badge||'',description:initial?.description||'',
+    badge:initial?.badge||'',description:initial?.description||'',
     featured:Boolean(initial?.featured),active:initial?.active!==false
   }));
+  const [media,setMedia]=useState(()=>initial?.media?.length?initial.media:initial?.imageUrl?[{url:initial.imageUrl,kind:'image',name:'capa'}]:[]);
+  const [uploading,setUploading]=useState(false);
   const update=event=>{
     const {name,type,checked,value}=event.target;
     setForm(current=>({...current,[name]:type==='checkbox'?checked:value}));
   };
-  return <form className="erp-form" onSubmit={event=>{event.preventDefault();onSubmit({...form,...(initial?{id:initial.id}:{})})}}>
+  const addFiles=async event=>{
+    const files=[...event.target.files||[]];
+    event.target.value='';
+    if(!files.length) return;
+    setUploading(true);
+    try{
+      const supabase=getSupabase();
+      const uploaded=[];
+      for(const file of files){
+        const sign=await api('/api/erp/upload',{method:'POST',body:{name:file.name,contentType:file.type}});
+        const {error}=await supabase.storage.from('product-media').uploadToSignedUrl(sign.path,sign.token,file);
+        if(error) throw error;
+        uploaded.push({url:sign.publicUrl,kind:sign.kind,name:file.name});
+      }
+      setMedia(current=>[...current,...uploaded]);
+    }catch(error){
+      notify(error.message||'Não foi possível enviar o arquivo');
+    }finally{
+      setUploading(false);
+    }
+  };
+  return <form className="erp-form" onSubmit={event=>{event.preventDefault();onSubmit({...form,media,...(initial?{id:initial.id}:{})})}}>
     <div className="erp-form-grid">
       <Field label="Nome"><input name="name" value={form.name} onChange={update} required/></Field>
       <Field label="SKU"><input name="sku" value={form.sku} onChange={update} placeholder="VF-PEI-010"/></Field>
@@ -71,14 +95,26 @@ function ProductForm({categories,initial,busy,onSubmit}){
       <Field label="Preço"><input name="price" value={form.price} onChange={update} placeholder="289,00" required/></Field>
       <Field label="Estoque inicial"><input name="stockQuantity" type="number" min="0" value={form.stockQuantity} onChange={update}/></Field>
       <Field label="Selo"><input name="badge" value={form.badge} onChange={update} placeholder="Quarentenado"/></Field>
-      <Field label="Imagem"><input name="imageUrl" value={form.imageUrl} onChange={update} placeholder="/store/produto.png"/></Field>
       <Field label="Descrição"><textarea name="description" rows="4" value={form.description} onChange={update}/></Field>
+    </div>
+    <div className="erp-media">
+      <div className="erp-media-head"><b>Imagens e vídeos</b><small>Pode enviar vários arquivos. A primeira imagem vira a capa da loja.</small></div>
+      <label className="erp-media-drop">
+        <ImagePlus size={22}/>
+        <span>{uploading?'Enviando...':'Clique para subir imagens ou vídeos'}</span>
+        <input type="file" accept="image/*,video/*" multiple hidden disabled={uploading||busy} onChange={addFiles}/>
+      </label>
+      {media.length>0&&<ul className="erp-media-list">{media.map((item,index)=><li key={item.url}>
+        {item.kind==='video'?<video src={item.url} muted playsInline/>:<img src={item.url} alt=""/>}
+        <small>{item.kind==='video'?'Vídeo':'Imagem'}{index===0?' • capa':''}</small>
+        <button type="button" className="erp-danger" onClick={()=>setMedia(current=>current.filter((_,i)=>i!==index))} aria-label="Remover"><Trash2 size={14}/></button>
+      </li>)}</ul>}
     </div>
     <div className="erp-checks">
       <label><input name="featured" type="checkbox" checked={form.featured} onChange={update}/> Destaque na home (máx. {FEATURED_LIMIT})</label>
       <label><input name="active" type="checkbox" checked={form.active} onChange={update}/> Visível no e-commerce</label>
     </div>
-    <div className="erp-actions"><button type="submit" disabled={busy}>{busy?'Salvando...':initial?'Salvar alterações':'Publicar na loja'}</button></div>
+    <div className="erp-actions"><button type="submit" disabled={busy||uploading}>{busy||uploading?'Salvando...':initial?'Salvar alterações':'Publicar na loja'}</button></div>
   </form>;
 }
 
@@ -321,8 +357,8 @@ export function ErpApp({notify}){
     </main>
     <div className="mobileNav erp-mobile-nav">{pages.map(([id,label,Icon])=><button key={id} className={page===id?'active':''} onClick={()=>go(id)}><Icon size={18}/><small>{label}</small></button>)}</div>
 
-    <Modal open={modal==='produto'} title={editing?'Editar produto':'Novo produto'} onClose={()=>setModal(null)}>
-      <ProductForm categories={categories} initial={editing} busy={busy} onSubmit={form=>run(()=>api('/api/erp/products',{method:form.id?'PATCH':'POST',body:form}),form.id?'Produto atualizado':'Produto publicado na loja')}/>
+    <Modal open={modal==='produto'} title={editing?'Editar produto':'Novo produto'} onClose={()=>setModal(null)} wide>
+      <ProductForm categories={categories} initial={editing} busy={busy} notify={notify} onSubmit={form=>run(()=>api('/api/erp/products',{method:form.id?'PATCH':'POST',body:form}),form.id?'Produto atualizado':'Produto publicado na loja')}/>
     </Modal>
     <Modal open={modal==='categoria'} title="Nova categoria" onClose={()=>setModal(null)}>
       <form className="erp-form" onSubmit={event=>{event.preventDefault();run(async()=>{await api('/api/erp/categories',{method:'POST',body:categoryForm});setCategoryForm({name:'',description:''})},'Categoria no menu da loja')}}>

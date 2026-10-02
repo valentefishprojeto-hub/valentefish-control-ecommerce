@@ -21,6 +21,7 @@ export function mapStoreProduct(row){
     price:cents!=null?formatPrice(cents/100):row.price,
     priceCents:cents,
     image:row.imageUrl||row.image_url||row.image,
+    media:Array.isArray(row.media)?row.media:row.imageUrl||row.image?[{url:row.imageUrl||row.image,kind:'image',name:'capa'}]:[],
     tag:row.badge||row.tag||'',
     featured:Boolean(row.featured),
     description:row.description||'',

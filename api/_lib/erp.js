@@ -29,7 +29,19 @@ export function uniqueSlug(base,used){
   return slug;
 }
 
+export function normalizeMedia(row={}){
+  const items=Array.isArray(row.media)?row.media.filter(item=>item?.url):[];
+  if(!items.length&&row.image_url) items.push({url:row.image_url,kind:'image',name:'capa'});
+  return items;
+}
+
+export function coverUrl(row={}){
+  const media=normalizeMedia(row);
+  return media.find(item=>item.kind!=='video')?.url||media[0]?.url||row.image_url||'';
+}
+
 export function mapProduct(row){
+  const media=normalizeMedia(row);
   return {
     id:row.id,
     sku:row.sku,
@@ -41,7 +53,8 @@ export function mapProduct(row){
     categoryName:row.category_name||row.category,
     categorySlug:row.category_slug||row.category,
     priceCents:row.price_cents,
-    imageUrl:row.image_url,
+    imageUrl:coverUrl(row),
+    media,
     badge:row.badge,
     stockQuantity:row.stock_quantity,
     featured:Boolean(row.featured),

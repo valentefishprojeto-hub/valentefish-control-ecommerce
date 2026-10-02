@@ -41,9 +41,11 @@ export default async function handler(req,res){
         const [{count}]=await sql`select count(*)::int as count from public.products where featured=true and active=true`;
         if(count>=FEATURED_LIMIT) return res.status(409).json({error:`A vitrine já tem ${FEATURED_LIMIT} destaques`});
       }
+      const media=Array.isArray(input.media)?input.media.filter(item=>item?.url):[];
+      const imageUrl=media.find(item=>item.kind!=='video')?.url||media[0]?.url||input.imageUrl||input.image_url||null;
       const [row]=await sql`
         insert into public.products (
-          sku, slug, name, description, category, category_id, price_cents, image_url, badge,
+          sku, slug, name, description, category, category_id, price_cents, image_url, media, badge,
           stock_quantity, featured, featured_rank, active
         ) values (
           ${input.sku||null},
@@ -53,7 +55,8 @@ export default async function handler(req,res){
           ${category.slug},
           ${category.id},
           ${parseMoney(input.price??input.priceCents)},
-          ${input.imageUrl||input.image_url||null},
+          ${imageUrl},
+          ${sql.json(media)},
           ${input.badge||null},
           ${Math.max(0,Number(input.stockQuantity??input.stock??0))},
           ${featured},
@@ -84,6 +87,10 @@ export default async function handler(req,res){
       const [{count}]=await sql`select count(*)::int as count from public.products where featured=true and active=true and id<>${id}`;
       if(count>=FEATURED_LIMIT) return res.status(409).json({error:`A vitrine já tem ${FEATURED_LIMIT} destaques`});
     }
+    const media=Array.isArray(input.media)?input.media.filter(item=>item?.url):current.media;
+    const imageUrl=Array.isArray(input.media)
+      ?(media.find(item=>item.kind!=='video')?.url||media[0]?.url||null)
+      :(input.imageUrl??input.image_url??current.image_url);
     await sql`
       update public.products
       set sku=${input.sku??current.sku},
@@ -93,7 +100,8 @@ export default async function handler(req,res){
           category=${category.slug},
           category_id=${category.id},
           price_cents=${input.price!=null||input.priceCents!=null?parseMoney(input.price??input.priceCents):current.price_cents},
-          image_url=${input.imageUrl??input.image_url??current.image_url},
+          image_url=${imageUrl},
+          media=${sql.json(media||[])},
           badge=${input.badge??current.badge},
           stock_quantity=${input.stockQuantity!=null||input.stock!=null?Math.max(0,Number(input.stockQuantity??input.stock)):current.stock_quantity},
           featured=${Boolean(featured)},

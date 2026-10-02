@@ -11,6 +11,7 @@ const routes={
   '/api/erp/sales':'./api/_routes/erp/sales.js',
   '/api/erp/finance':'./api/_routes/erp/finance.js',
   '/api/erp/commerce':'./api/_routes/erp/commerce.js',
+  '/api/erp/upload':'./api/_routes/erp/upload.js',
   '/api/track':'./api/_routes/track.js',
   '/api/products':'./api/_routes/products.js',
   '/api/cart':'./api/_routes/cart.js',
@@ -70,7 +71,7 @@ function localApi(){
 export default defineConfig(({command,mode})=>{
   if(command==='serve'){
     const env=loadEnv(mode,process.cwd(),'');
-    for(const key of ['DATABASE_URL','SUPABASE_URL','SUPABASE_ANON_KEY','VITE_SUPABASE_URL','VITE_SUPABASE_ANON_KEY']){
+    for(const key of ['DATABASE_URL','SUPABASE_URL','SUPABASE_ANON_KEY','SUPABASE_SERVICE_ROLE_KEY','SUPABASE_SECRET_KEY','VITE_SUPABASE_URL','VITE_SUPABASE_ANON_KEY']){
       if(env[key]&&!process.env[key]) process.env[key]=env[key];
     }
   }

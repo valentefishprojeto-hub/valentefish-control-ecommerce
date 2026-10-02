@@ -14,6 +14,7 @@ import finance from './_routes/erp/finance.js';
 import erpProducts from './_routes/erp/products.js';
 import sales from './_routes/erp/sales.js';
 import stock from './_routes/erp/stock.js';
+import upload from './_routes/erp/upload.js';
 import quote from './_routes/shipping/quote.js';
 import tracking from './_routes/shipping/tracking.js';
 import mercadoPago from './_routes/webhooks/mercado-pago.js';
@@ -35,6 +36,7 @@ const routes={
   'erp/products':erpProducts,
   'erp/sales':sales,
   'erp/stock':stock,
+  'erp/upload':upload,
   'shipping/quote':quote,
   'shipping/tracking':tracking,
   'webhooks/mercado-pago':mercadoPago
