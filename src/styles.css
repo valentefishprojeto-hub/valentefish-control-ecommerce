@@ -90,6 +90,12 @@
 .store-back-spacer{width:40px;height:40px}
 .storefront{min-height:100vh;display:flex;flex-direction:column}
 .store-footer{margin-top:auto}
+.dev-credit{grid-column:1/-1;display:inline-flex!important;align-items:center;justify-self:center;justify-content:center;gap:10px;margin-top:10px;padding-top:16px;border-top:1px solid #ffffff1a;color:#e8f4f4;text-decoration:none}
+.dev-credit-mark{width:36px;height:36px;border-radius:10px;background:#071c22;color:#3d9b8c;display:grid!important;place-items:center;font-size:15px;font-weight:800;letter-spacing:-.06em;flex:none}
+.dev-credit-text{display:grid!important;gap:1px;align-items:start}
+.dev-credit small{display:block;font-size:11px;color:#8aa3a8;font-weight:500;line-height:1.15}
+.dev-credit b{display:block;font-size:15px;font-weight:700;line-height:1.15;color:#eef6f6}
+.dev-credit:hover,.dev-credit:hover b{color:#fff}
 .commerce-page{position:relative;z-index:2;width:min(1180px,calc(100% - 36px));margin:16px auto 28px;padding:12px 0 8px;flex:1;height:auto}
 .commerce-heading{margin-bottom:28px;display:flex;justify-content:space-between;align-items:end;gap:18px;flex-wrap:wrap}
 .commerce-heading h1{color:#073a50;font-size:clamp(34px,4.4vw,48px);letter-spacing:-.05em;line-height:.95;margin:8px 0 0}
