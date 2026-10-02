@@ -1,6 +1,6 @@
-import {db} from '../_lib/db.js';
-import {FEATURED_LIMIT,mapProduct,parseMoney,uniqueSlug} from '../_lib/erp.js';
-import {body,fail,method} from '../_lib/http.js';
+import {db} from '../../_lib/db.js';
+import {FEATURED_LIMIT,mapProduct,parseMoney,uniqueSlug} from '../../_lib/erp.js';
+import {body,fail,method} from '../../_lib/http.js';
 
 async function loadCategory(sql,idOrSlug){
   if(!idOrSlug) return null;

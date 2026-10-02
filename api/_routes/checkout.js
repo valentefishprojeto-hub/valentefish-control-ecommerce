@@ -1,7 +1,7 @@
-import {currentUser} from './_lib/auth.js';
-import {findCart} from './_lib/cart.js';
-import {centsToMoney,db} from './_lib/db.js';
-import {appUrl,body,fail,method} from './_lib/http.js';
+import {currentUser} from '../_lib/auth.js';
+import {findCart} from '../_lib/cart.js';
+import {centsToMoney,db} from '../_lib/db.js';
+import {appUrl,body,fail,method} from '../_lib/http.js';
 
 const requiredAddressFields=['postalCode','street','number','district','city','state'];
 

@@ -1,5 +1,5 @@
-import {db} from './_lib/db.js';
-import {body,fail,method} from './_lib/http.js';
+import {db} from '../_lib/db.js';
+import {body,fail,method} from '../_lib/http.js';
 
 const allowed=['page_view','search','add_to_cart','cart_view','checkout','cart_snapshot'];
 

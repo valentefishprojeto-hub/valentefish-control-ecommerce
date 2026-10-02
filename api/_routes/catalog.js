@@ -1,6 +1,6 @@
-import {db} from './_lib/db.js';
-import {FEATURED_LIMIT,mapProduct} from './_lib/erp.js';
-import {fail,method} from './_lib/http.js';
+import {db} from '../_lib/db.js';
+import {FEATURED_LIMIT,mapProduct} from '../_lib/erp.js';
+import {fail,method} from '../_lib/http.js';
 
 export default async function handler(req,res){
   if(!method(req,res,['GET'])) return;

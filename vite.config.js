@@ -2,24 +2,25 @@ import react from '@vitejs/plugin-react';
 import {defineConfig,loadEnv} from 'vite';
 
 const routes={
-  '/api/catalog':'./api/catalog.js',
-  '/api/erp/dashboard':'./api/erp/dashboard.js',
-  '/api/erp/categories':'./api/erp/categories.js',
-  '/api/erp/products':'./api/erp/products.js',
-  '/api/erp/stock':'./api/erp/stock.js',
-  '/api/erp/customers':'./api/erp/customers.js',
-  '/api/erp/sales':'./api/erp/sales.js',
-  '/api/erp/finance':'./api/erp/finance.js',
-  '/api/erp/commerce':'./api/erp/commerce.js',
-  '/api/track':'./api/track.js',
-  '/api/products':'./api/products.js',
-  '/api/cart':'./api/cart.js',
-  '/api/checkout':'./api/checkout.js',
-  '/api/account':'./api/account.js',
-  '/api/orders':'./api/orders.js',
-  '/api/config':'./api/config.js',
-  '/api/shipping/quote':'./api/shipping/quote.js',
-  '/api/shipping/tracking':'./api/shipping/tracking.js'
+  '/api/catalog':'./api/_routes/catalog.js',
+  '/api/erp/dashboard':'./api/_routes/erp/dashboard.js',
+  '/api/erp/categories':'./api/_routes/erp/categories.js',
+  '/api/erp/products':'./api/_routes/erp/products.js',
+  '/api/erp/stock':'./api/_routes/erp/stock.js',
+  '/api/erp/customers':'./api/_routes/erp/customers.js',
+  '/api/erp/sales':'./api/_routes/erp/sales.js',
+  '/api/erp/finance':'./api/_routes/erp/finance.js',
+  '/api/erp/commerce':'./api/_routes/erp/commerce.js',
+  '/api/track':'./api/_routes/track.js',
+  '/api/products':'./api/_routes/products.js',
+  '/api/cart':'./api/_routes/cart.js',
+  '/api/checkout':'./api/_routes/checkout.js',
+  '/api/account':'./api/_routes/account.js',
+  '/api/orders':'./api/_routes/orders.js',
+  '/api/config':'./api/_routes/config.js',
+  '/api/shipping/quote':'./api/_routes/shipping/quote.js',
+  '/api/shipping/tracking':'./api/_routes/shipping/tracking.js',
+  '/api/webhooks/mercado-pago':'./api/_routes/webhooks/mercado-pago.js'
 };
 
 function readBody(req){

@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
-import {db} from '../_lib/db.js';
-import {body,fail,method} from '../_lib/http.js';
+import {db} from '../../_lib/db.js';
+import {body,fail,method} from '../../_lib/http.js';
 
 function validSignature(req,dataId){
   const secret=process.env.MERCADO_PAGO_WEBHOOK_SECRET;

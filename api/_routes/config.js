@@ -1,4 +1,4 @@
-import {method} from './_lib/http.js';
+import {method} from '../_lib/http.js';
 
 export default function handler(req,res){
   if(!method(req,res,['GET'])) return;
