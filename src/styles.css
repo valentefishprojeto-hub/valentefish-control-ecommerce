@@ -87,7 +87,10 @@
 .product-cart-button{background:#083e5f;color:#fff}
 .product-buy-button{background:linear-gradient(135deg,#f05d75,#ff7a2f);color:#fff}
 .product-purchase{grid-template-columns:112px 1fr}
-.commerce-page{position:relative;z-index:2;width:min(1180px,calc(100% - 36px));margin:20px auto 80px;padding:36px 0 20px}
+.store-back-spacer{width:40px;height:40px}
+.storefront{min-height:100vh;display:flex;flex-direction:column}
+.store-footer{margin-top:auto}
+.commerce-page{position:relative;z-index:2;width:min(1180px,calc(100% - 36px));margin:16px auto 28px;padding:12px 0 8px;flex:1;height:auto}
 .commerce-heading{margin-bottom:28px;display:flex;justify-content:space-between;align-items:end;gap:18px;flex-wrap:wrap}
 .commerce-heading h1{color:#073a50;font-size:clamp(34px,4.4vw,48px);letter-spacing:-.05em;line-height:.95;margin:8px 0 0}
 .commerce-heading p,.commerce-muted{color:#5d7780;line-height:1.6;margin:0;max-width:420px}
@@ -110,7 +113,7 @@
 .cart-item-tools em{font-style:normal;font-weight:800;color:#073a50;font-size:18px;min-width:96px;text-align:right}
 .cart-remove{border:0;background:#fff1ee;color:#d25a3d;min-height:36px;padding:0 12px;border-radius:10px;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700}
 .cart-summary,.commerce-card{padding:24px;display:grid;gap:14px;align-content:start}
-.cart-summary{position:sticky;top:120px;background:#fff}
+.cart-summary{position:sticky;top:120px;background:#fff;height:fit-content;align-self:start}
 .cart-summary p,.account-order{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:0;color:#526f79}
 .cart-summary strong{display:flex;justify-content:space-between;color:#073a50;font-size:22px}
 .cart-summary-note{color:#5d7780}
@@ -132,7 +135,7 @@
 .shipping-options label{grid-template-columns:18px 1fr auto;align-items:center;padding:12px 14px;border:1px solid #d7e7ea;border-radius:14px;background:#f7fbfc}
 .shipping-options label.active{border-color:#3fc7d0;background:#edfbfb}
 .commerce-error{color:#c4472c}
-@media(max-width:900px){.cart-layout,.checkout-grid,.account-grid,.product-purchase,.auth-layout{grid-template-columns:1fr}.cart-list li{grid-template-columns:80px 1fr;row-gap:12px}.cart-item-tools{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;justify-items:stretch}.cart-summary{position:static}.account-shortcuts,.suggest-track{grid-template-columns:1fr 1fr}.checkout-steps{width:100%}}
+@media(max-width:900px){.cart-layout,.checkout-grid,.account-grid,.product-purchase{grid-template-columns:1fr}.cart-list li{grid-template-columns:80px 1fr;row-gap:12px}.cart-item-tools{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;justify-items:stretch}.cart-summary{position:static}.account-shortcuts,.suggest-track{grid-template-columns:1fr 1fr}.checkout-steps{width:100%}}
 @media(max-width:680px){.store-actions button:first-child{display:flex}.store-actions{position:static}.commerce-page{width:calc(100% - 32px)}.account-shortcuts,.suggest-track{grid-template-columns:1fr}.cart-remove span,.cart-remove{font-size:0;width:38px;padding:0;justify-content:center}.cart-remove svg{width:15px}}
 .google-button{width:100%;height:48px;background:#fff!important;color:#1f1f1f!important;border:1px solid #dadce0!important;font-weight:700}
 .google-button:hover{background:#f8fafc!important}
@@ -150,12 +153,8 @@
 .account-order{padding:14px 0;border-bottom:1px solid #e4eef0}
 .account-order-thumbs{display:flex;gap:6px}
 .account-order-thumbs img{width:40px;height:40px;object-fit:contain;background:#f4fbfb;border-radius:8px}
-.auth-layout{display:grid;grid-template-columns:minmax(0,.9fr) minmax(280px,1fr);gap:36px;align-items:start}
-.auth-layout .commerce-card{max-width:460px}
-.auth-benefits{background:#fff;border:1px solid #e3eeef;border-radius:20px;padding:28px;box-shadow:0 12px 32px #073e5010;align-self:start}
-.auth-benefits h2{color:#073a50;font-size:clamp(28px,3vw,40px);letter-spacing:-.04em;line-height:1;margin:8px 0 20px}
-.auth-benefits ul{list-style:none;margin:0;padding:0;display:grid;gap:14px;color:#3f5c68}
-.auth-benefits li{display:flex;align-items:center;gap:10px}
+.auth-page{display:grid;align-content:start;justify-items:center}
+.auth-page .account-form{width:min(440px,100%);height:fit-content}
 .checkout-steps{list-style:none;margin:0;padding:0;display:flex;gap:18px;color:#8aa0a8;font-size:13px;font-weight:800}
 .checkout-steps li{position:relative;padding-left:22px}
 .checkout-steps li:before{content:"";position:absolute;left:0;top:4px;width:10px;height:10px;border-radius:50%;background:#d5e4e6}

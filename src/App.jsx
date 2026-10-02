@@ -277,34 +277,23 @@ function AuthPage({mode,busy,error,next,onSubmit,onGoogle,onSwitch}){
   const [form,setForm]=useState({name:'',email:'',phone:'',password:''});
   const update=event=>setForm(current=>({...current,[event.target.name]:event.target.value}));
   const creating=mode==='criar-conta';
-  const toCheckout=String(next||'').includes('/checkout');
+  const toCheckout=new URLSearchParams(window.location.search).get('next')?.includes('/checkout');
   return <section className="commerce-page auth-page">
-    <div className="auth-layout">
-      <form className="commerce-card account-form" onSubmit={event=>{event.preventDefault();onSubmit(form)}}>
-        <span className="eyebrow">{creating?'NOVA CONTA':'ACESSE SUA CONTA'}</span>
-        <h1>{toCheckout?(creating?'Crie sua conta para finalizar':'Entre para finalizar a compra'):creating?'Criar conta':'Entrar'}</h1>
-        <p>{creating?'Use e-mail, telefone e senha para acompanhar pedidos e acelerar o checkout.':'Entre com Google ou e-mail. Seus dados ficam salvos para a próxima compra.'}</p>
-        <button type="button" className="google-button" onClick={()=>onGoogle(next)} disabled={busy}><GoogleIcon/> Continuar com Google</button>
-        <div className="auth-divider"><span>ou use e-mail</span></div>
-        {creating&&<label>Nome<input name="name" value={form.name} onChange={update} required placeholder="Seu nome"/></label>}
-        <label>E-mail<input name="email" type="email" value={form.email} onChange={update} required placeholder="voce@email.com"/></label>
-        {creating&&<label>Telefone / WhatsApp<input name="phone" type="tel" value={form.phone} onChange={update} required placeholder="(21) 99999-9999"/></label>}
-        <label>Senha<input name="password" type="password" value={form.password} onChange={update} required minLength={6} placeholder="Mínimo 6 caracteres"/></label>
-        {error&&<small className="commerce-error">{error}</small>}
-        <button type="submit" disabled={busy}>{busy?'Aguarde...':creating?'Criar conta':'Entrar e continuar'}</button>
-        <small>{creating?'Já tem conta?':'Ainda não tem conta?'} <button type="button" className="text-link" onClick={onSwitch}>{creating?'Entrar':'Criar conta'}</button></small>
-      </form>
-      <aside className="auth-benefits">
-        <span className="eyebrow">POR QUE CRIAR CONTA</span>
-        <h2>Checkout mais rápido e pedidos no mesmo lugar.</h2>
-        <ul>
-          <li><ShieldCheck size={18}/> Dados protegidos e compra segura</li>
-          <li><Package size={18}/> Acompanhe pedidos e status de envio</li>
-          <li><Truck size={18}/> Frete e endereço salvos para a próxima compra</li>
-          <li><BadgeCheck size={18}/> Atendimento com o histórico da sua conta</li>
-        </ul>
-      </aside>
-    </div>
+    <form className="commerce-card account-form" onSubmit={event=>{event.preventDefault();onSubmit(form)}}>
+      <span className="eyebrow">{creating?'NOVA CONTA':'ACESSE SUA CONTA'}</span>
+      <h1>{toCheckout?(creating?'Crie sua conta para finalizar':'Entre para finalizar a compra'):creating?'Criar conta':'Entrar'}</h1>
+      <p>{creating?'Use e-mail, telefone e senha para acompanhar pedidos.':'Entre com Google ou e-mail para continuar.'}</p>
+      <button type="button" className="google-button" onClick={()=>onGoogle(next)} disabled={busy}><GoogleIcon/> Continuar com Google</button>
+      <div className="auth-divider"><span>ou use e-mail</span></div>
+      {creating&&<label>Nome<input name="name" value={form.name} onChange={update} required placeholder="Seu nome"/></label>}
+      <label>E-mail<input name="email" type="email" value={form.email} onChange={update} required placeholder="voce@email.com"/></label>
+      {creating&&<label>Telefone / WhatsApp<input name="phone" type="tel" value={form.phone} onChange={update} required placeholder="(21) 99999-9999"/></label>}
+      <label>Senha<input name="password" type="password" value={form.password} onChange={update} required minLength={6} placeholder="Mínimo 6 caracteres"/></label>
+      {error&&<small className="commerce-error">{error}</small>}
+      <button type="submit" disabled={busy}>{busy?'Aguarde...':creating?'Criar conta':'Entrar e continuar'}</button>
+      <small>{creating?'Já tem conta?':'Ainda não tem conta?'} <button type="button" className="text-link" onClick={onSwitch}>{creating?'Entrar':'Criar conta'}</button></small>
+      <CommerceTrust/>
+    </form>
   </section>;
 }
 
@@ -471,6 +460,12 @@ function Shop({notify,go}){
   },[authReady,session,storePage]);
   const navigateTo=path=>{const [pathname]=path.split('?');if(pathname===routePath&&path===window.location.pathname+(window.location.search||''))return;if(window.location.pathname+window.location.search!==path)window.history.pushState({},'',path);setRoutePath(pathname);window.scrollTo(0,0)};
   const navigateStore=page=>navigateTo(storeMenu.find(([id])=>id===page)?.[2]||'/');
+  const goStoreBack=()=>{
+    if(['checkout','sucesso','pendente','falha'].includes(storePage)) return navigateTo('/carrinho');
+    if(storePage==='produto') return navigateStore('produtos');
+    if(['entrar','criar-conta','conta'].includes(storePage)) return navigateStore('home');
+    navigateStore('home');
+  };
   const openProduct=item=>{const path=`/produto/${productSlug(item.name)}`;setQuantity(1);if(window.location.pathname!==path)window.history.pushState({},'',path);setRoutePath(path);window.scrollTo(0,0)};
   const persistCart=items=>{setCartItems(saveCart(items));return items};
   const addToCart=(product,amount=1,{open=true}={})=>{const items=persistCart(upsertCartItem(cartItems,{...product,slug:productSlug(product.name)},amount));setCartNotice({product,amount});if(open&&!['carrinho','checkout'].includes(storePage))setMiniCartOpen(true);return items};
@@ -573,7 +568,7 @@ function Shop({notify,go}){
     <div className="ocean-atmosphere" aria-hidden="true"><i/><i/><i/></div>
     <div className="store-announcement">Envio especializado para todo o Brasil <span>•</span> Atendimento por aquaristas</div>
     <header className="store-header">
-      <button className="store-back" onClick={()=>go('overview')} title="Voltar ao ecossistema"><ArrowLeft size={18}/></button>
+      {storePage==='home'?<span className="store-back-spacer" aria-hidden="true"/>:<button className="store-back" onClick={goStoreBack} aria-label="Voltar"><ArrowLeft size={18}/></button>}
       <button className="store-logo-button" onClick={()=>navigateStore('home')} aria-label="Ir para o início"><img src="/valente-fish-logo.png" alt="Valente Fish" className="store-logo"/></button>
       <div className="store-search"><Search size={19}/><input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')navigateStore('produtos')}} placeholder="Busque peixes, corais, rações e equipamentos..." aria-label="Buscar produtos"/></div>
       <div className="store-actions"><button className={['conta','entrar','criar-conta'].includes(storePage)?'active':''} onClick={()=>navigateTo(session?'/conta':'/conta/entrar')}><User size={20}/><span>{session?session.name.split(' ')[0]:'Entrar'}</span></button><button className={`cart-button${storePage==='carrinho'||miniCartOpen?' active':''}`} onClick={()=>setMiniCartOpen(true)}><ShoppingCart size={21}/><span>Carrinho</span>{cart>0&&<b>{cart}</b>}</button></div>
