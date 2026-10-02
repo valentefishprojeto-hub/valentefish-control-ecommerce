@@ -1,6 +1,6 @@
-import {fileURLToPath,pathToFileURL} from 'node:url';
 import react from '@vitejs/plugin-react';
 import {defineConfig,loadEnv} from 'vite';
+
 const routes={
   '/api/catalog':'./api/catalog.js',
   '/api/erp/dashboard':'./api/erp/dashboard.js',
@@ -36,7 +36,9 @@ function readBody(req){
 function localApi(){
   return {
     name:'local-api',
-    configureServer(server){
+    apply:'serve',
+    async configureServer(server){
+      const {fileURLToPath,pathToFileURL}=await import('node:url');
       server.middlewares.use(async(req,res,next)=>{
         const url=new URL(req.url||'/',`http://${req.headers.host||'localhost'}`);
         const file=routes[url.pathname];
@@ -64,14 +66,17 @@ function localApi(){
   };
 }
 
-export default defineConfig(({mode})=>{
-  const env=loadEnv(mode,process.cwd(),'');
-  for(const key of ['DATABASE_URL','SUPABASE_URL','SUPABASE_ANON_KEY','NEXT_PUBLIC_SUPABASE_URL','NEXT_PUBLIC_SUPABASE_ANON_KEY','VITE_SUPABASE_URL','VITE_SUPABASE_ANON_KEY']){
-    if(env[key]&&!process.env[key]) process.env[key]=env[key];
+export default defineConfig(({command,mode})=>{
+  if(command==='serve'){
+    const env=loadEnv(mode,process.cwd(),'');
+    for(const key of ['DATABASE_URL','SUPABASE_URL','SUPABASE_ANON_KEY','VITE_SUPABASE_URL','VITE_SUPABASE_ANON_KEY']){
+      if(env[key]&&!process.env[key]) process.env[key]=env[key];
+    }
   }
-  if(!process.env.SUPABASE_URL&&process.env.VITE_SUPABASE_URL) process.env.SUPABASE_URL=process.env.VITE_SUPABASE_URL;
-  if(!process.env.SUPABASE_ANON_KEY&&process.env.VITE_SUPABASE_ANON_KEY) process.env.SUPABASE_ANON_KEY=process.env.VITE_SUPABASE_ANON_KEY;
   return {
-    plugins:[react(),localApi()]
+    plugins:[react(),localApi()],
+    build:{
+      chunkSizeWarningLimit:700
+    }
   };
 });

@@ -4,8 +4,8 @@ import {MessageCircle,AtSign,Check,ArrowRight,Search,ShoppingCart,User,Truck,Shi
 import {api,cartCount,cartSubtotal,fallbackQuotes,formatPrice,loadCart,loadOrders,lookupCep,priceValue,saveCart,saveOrder,setCartQuantity,upsertCartItem} from './commerce';
 import {authMessage,currentSession,loadProfile,loginAccount as signInAccount,loginWithGoogle,logoutAccount as signOutAccount,onAuthChange,registerAccount as signUpAccount,updateAccount} from './auth';
 import {FEATURED_LIMIT,categoryPath,fallbackCategories,loadCatalog} from './catalog';
-import {ErpApp} from './erp';
 import {track,trackCart} from './track';
+const ErpApp=React.lazy(()=>import('./erp').then(module=>({default:module.ErpApp})));
 
 function Toast({message}){return message?<div className="toast"><Check size={17}/>{message}</div>:null}
 
@@ -700,6 +700,6 @@ export default function App(){
     return()=>window.removeEventListener('popstate',onPop);
   },[]);
   const notify=m=>{setToast(m);setTimeout(()=>setToast(''),2400)};
-  if(isAdmin) return <><ErpApp notify={notify}/><Toast message={toast}/></>;
+  if(isAdmin) return <React.Suspense fallback={<div className="erp-boot">Carregando ERP...</div>}><ErpApp notify={notify}/><Toast message={toast}/></React.Suspense>;
   return <div className="store-shell"><Shop notify={notify}/><Toast message={toast}/></div>;
 }
