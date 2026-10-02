@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {LayoutDashboard,MessageCircle,AtSign,Boxes,ShoppingBag,ClipboardCheck,RefreshCw,Camera,Check,ArrowRight,Search,ShoppingCart,User,Truck,ShieldCheck,BadgeCheck,Star,ArrowLeft,Heart,Play,MessageSquareText} from 'lucide-react';
+import {LayoutDashboard,MessageCircle,AtSign,Boxes,ShoppingBag,ClipboardCheck,RefreshCw,Camera,Check,ArrowRight,Search,ShoppingCart,User,Truck,ShieldCheck,BadgeCheck,Star,ArrowLeft,Heart,MessageSquareText} from 'lucide-react';
 
 const views={
  overview:['Visão geral','Operação, atendimento e vendas em uma única estrutura.'],
@@ -30,7 +30,7 @@ function AquariumEffects(){
     const makeBubble=(randomY=true)=>({x:Math.random()*width,y:randomY?Math.random()*height:height+20,r:1.5+Math.random()*5.5,speed:.22+Math.random()*.55,drift:Math.random()*Math.PI*2,alpha:.12+Math.random()*.28});
     const resize=()=>{width=window.innerWidth;height=window.innerHeight;dpr=Math.min(window.devicePixelRatio||1,1.5);canvas.width=width*dpr;canvas.height=height*dpr;canvas.style.width=`${width}px`;canvas.style.height=`${height}px`;context.setTransform(dpr,0,0,dpr,0,0);if(!bubbles.length)for(let i=0;i<bubbleCount;i++)bubbles.push(makeBubble())};
     const addBurst=(x,y,count=7)=>{if(reduced)return;for(let i=0;i<count;i++)trails.push({x:x+(Math.random()-.5)*18,y:y+(Math.random()-.5)*12,r:2+Math.random()*7,vx:(Math.random()-.5)*1.2,vy:-.5-Math.random()*1.7,alpha:.55+Math.random()*.3})};
-    const onPointerMove=event=>{if(event.pointerType==='touch')return;pointer.targetX=event.clientX;pointer.targetY=event.clientY;pointer.active=true;pointer.alpha=Math.min(1,pointer.alpha+.25);if(Math.hypot(event.clientX-lastX,event.clientY-lastY)>24){trails.push({x:event.clientX,y:event.clientY,r:2+Math.random()*4,vx:(Math.random()-.5)*.5,vy:-.5-Math.random(),alpha:.42});lastX=event.clientX;lastY=event.clientY}};
+    const onPointerMove=event=>{if(event.pointerType==='touch')return;pointer.targetX=event.clientX;pointer.targetY=event.clientY;pointer.active=true;pointer.alpha=Math.min(1,pointer.alpha+.25);const root=canvas.closest('.storefront');root?.style.setProperty('--pointer-x',String(event.clientX/width-.5));root?.style.setProperty('--pointer-y',String(event.clientY/height-.5));if(Math.hypot(event.clientX-lastX,event.clientY-lastY)>24){trails.push({x:event.clientX,y:event.clientY,r:2+Math.random()*4,vx:(Math.random()-.5)*.5,vy:-.5-Math.random(),alpha:.42});lastX=event.clientX;lastY=event.clientY}};
     const onPointerLeave=()=>{pointer.active=false};
     const onPointerDown=event=>{pointer.targetX=event.clientX;pointer.targetY=event.clientY;pointer.x=event.clientX;pointer.y=event.clientY;pointer.alpha=event.pointerType==='touch' ? .65 : 1;addBurst(event.clientX,event.clientY,event.pointerType==='touch'?10:7)};
     const onScroll=()=>{const max=Math.max(1,document.documentElement.scrollHeight-innerHeight);canvas.closest('.storefront')?.style.setProperty('--dive-depth',String(Math.min(1,scrollY/max)))};
@@ -61,6 +61,24 @@ function AquariumEffects(){
   return <canvas ref={canvasRef} className="aquarium-canvas" aria-hidden="true"/>;
 }
 
+function CinematicIntro(){
+  const [visible,setVisible]=useState(()=>!window.matchMedia('(prefers-reduced-motion: reduce)').matches&&sessionStorage.getItem('valente-intro-seen')!=='1');
+  const [leaving,setLeaving]=useState(false);
+  useEffect(()=>{if(!visible)return;const timer=setTimeout(()=>finish(),3300);return()=>clearTimeout(timer)},[visible]);
+  const finish=()=>{setLeaving(true);sessionStorage.setItem('valente-intro-seen','1');setTimeout(()=>setVisible(false),650)};
+  if(!visible)return null;
+  return <div className={`cinematic-intro ${leaving?'leaving':''}`} aria-label="Apresentação Valente Fish">
+    <div className="intro-surface"/>
+    <div className="intro-rays"><i/><i/><i/></div>
+    <div className="intro-school" aria-hidden="true">{Array.from({length:12},(_,index)=><i key={index}/>)}</div>
+    <img className="intro-fish intro-fish-yellow" src="/store/product-fish-yellow.png" alt=""/>
+    <img className="intro-fish intro-fish-clown" src="/store/product-fish-clown.png" alt=""/>
+    <div className="intro-brand"><span>MERGULHE NO UNIVERSO</span><img src="/valente-fish-logo.png" alt="Valente Fish"/></div>
+    <div className="intro-bubbles" aria-hidden="true">{Array.from({length:9},(_,index)=><i key={index}/>)}</div>
+    <button onClick={finish}>Pular introdução</button>
+  </div>
+}
+
 function Overview({go}){return <><div className="metrics"><Metric label="Vendas no mês" value="R$ 48.760" detail="↑ 18,4% vs. mês anterior"/><Metric label="Leads via automação" value="386" detail="142 chegaram do Instagram"/><Metric label="Produtos ativos" value="248" detail="96% sincronizados"/><Metric label="Atendimentos ChatBô" value="1.284" detail="78% resolvidos automaticamente"/></div><div className="split"><Card title="Fluxo integrado de venda"><div className="flow"><Flow icon="📱" title="Comenta VALOR" text="Instagram ou Facebook"/><ArrowRight/><Flow icon="💬" title="Recebe a DM" text="Produto, preço e link"/><ArrowRight/><Flow icon="🛒" title="Compra no site" text="Pix, cartão ou boleto"/></div><div className="flow second"><Flow icon="📷" title="Cadastro no ERP" text="Foto + identificação por IA"/><ArrowRight/><Flow icon="🔄" title="Sincronização" text="Estoque e catálogo central"/><ArrowRight/><Flow icon="📣" title="Publicação" text="Site e redes sociais"/></div></Card><Card title="Atividade em tempo real"><Activity icon="💬" title="Nova DM disparada" text="@marina comentou “valor” no post."/><Activity icon="🛒" title="Pedido #1842 confirmado" text="Pagamento via Pix • R$ 289,00."/><Activity icon="📦" title="Estoque sincronizado" text="1 unidade reservada no M-04."/><Activity icon="✨" title="Produto identificado" text="Zebrasoma flavescens • 94%."/></Card></div><button className="floating" onClick={()=>go('automation')}>Testar o fluxo “valor”</button></>}
 function Flow({icon,title,text}){return <div className="flowBox"><b className="emoji">{icon}</b><strong>{title}</strong><small>{text}</small></div>}
 function Activity({icon,title,text}){return <div className="activity"><span>{icon}</span><div><b>{title}</b><p>{text}</p></div></div>}
@@ -85,30 +103,55 @@ const storeProducts=[
   {name:'Carcaça Slim para Filtro',category:'Filtragem',price:'R$ 129,90',image:'/store/product-filter.jpg'},
   {name:'Osmose Reversa 4 Estágios',category:'Filtragem',price:'R$ 1.249,90',image:'/store/product-osmosis.jpg',tag:'Envio nacional'}
 ];
-const reels=[
-  ['UTlY6Hq3ulQ','Conheça a maior variedade do RJ'],
-  ['A4bbAsxyzX0',"Valente's Reef"],
-  ['2W5VO4qih94','Favia Prisma Dragon'],
-  ['97flI2idI4E','Novidades no aquário']
+const valenteStories=[
+  ['tzrZEFUF21Q','01','Anêmonas','Qual é a sua preferida?'],
+  ['Ua5ZTRYOTUQ','02','Scolymia','Bleeding Apple'],
+  ['R_0UQ2QAhfI','03','Mushroom','Bounce Frankenstein'],
+  ['97flI2idI4E','04',"Valente's Reef",'Uma nova luz sobre o reef']
 ];
 const storeMenu=[['home','Início','/'],['produtos','Produtos','/produtos'],['peixes','Peixes','/peixes'],['corais','Corais','/corais'],['racoes','Rações','/racoes'],['filtragem','Filtragem','/filtragem'],['tratamentos','Tratamentos','/tratamentos'],['orcamento','Orçamento','/orcamento']];
-const storePageFromPath=()=>storeMenu.find(([, ,path])=>path===window.location.pathname)?.[0]||'home';
+const productSlug=name=>name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+const storePageFromPath=path=>path.startsWith('/produto/')?'produto':storeMenu.find(([, ,menuPath])=>menuPath===path)?.[0]||'home';
 const pageCategories={peixes:'Peixes',corais:'Corais',racoes:'Rações',filtragem:'Filtragem',tratamentos:'Tratamentos'};
+const categoryInfo={
+  Peixes:{description:'Exemplar selecionado pela equipe Valente Fish, acompanhado de perto e preparado para uma adaptação segura ao novo aquário.',details:['Animal quarentenado','Alimentação acompanhada','Suporte para aclimatação','Foto ilustrativa do lote']},
+  Corais:{description:'Coral selecionado por coloração, saúde e estrutura, mantido sob parâmetros controlados antes da disponibilização.',details:['Cultivo selecionado','Iluminação moderada','Fluxo moderado','Suporte pós-compra']},
+  Rações:{description:'Nutrição de qualidade para uma rotina alimentar equilibrada, escolhida entre marcas reconhecidas no aquarismo.',details:['Produto original','Lote rastreável','Armazenamento adequado','Envio protegido']},
+  Filtragem:{description:'Equipamento escolhido para apoiar a estabilidade e a qualidade da água do seu sistema.',details:['Produto original','Aplicação em aquários','Suporte especializado','Garantia do fabricante']},
+  Tratamentos:{description:'Solução especializada para manutenção do aquário. A aplicação deve seguir as orientações do fabricante.',details:['Produto original','Lote rastreável','Instruções do fabricante','Suporte especializado']}
+};
+
+function CategoryGlyph({type}){
+  const drawings={
+    peixes:<><path d="M6 24c7-9 18-10 27-3 4 3 4 7 0 10-9 7-20 6-27-3l-4 5V19l4 5Z"/><path d="M18 17c-2-4 2-7 6-8M18 35c-2 4 2 7 6 8"/><circle cx="30" cy="24" r="1.7"/></>,
+    corais:<><path d="M24 42V21m0 8-9-8v-8m9 10 9-8V8m-9 20 11 7v-8M24 20l-8-7V7"/><path d="M10 42h28"/><circle cx="15" cy="12" r="2"/><circle cx="33" cy="7" r="2"/><circle cx="36" cy="26" r="2"/></>,
+    racoes:<><path d="M8 27h32l-4 12H12L8 27Z"/><path d="M13 27c2-5 20-5 22 0"/><circle cx="14" cy="13" r="2.4"/><circle cx="24" cy="9" r="2.4"/><circle cx="34" cy="15" r="2.4"/><circle cx="23" cy="18" r="2.4"/></>,
+    filtragem:<><rect x="13" y="7" width="22" height="34" rx="6"/><path d="M13 15h22M13 34h22M19 20c3-3 7 3 10 0M19 26c3-3 7 3 10 0"/><path d="M8 13c-4 3-4 8 0 11M40 30c4 3 4 8 0 11"/></>
+  };
+  return <svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{drawings[type]}</svg>;
+}
 
 function Shop({notify,go}){
   const [query,setQuery]=useState('');
-  const [storePage,setStorePage]=useState(storePageFromPath);
+  const [routePath,setRoutePath]=useState(window.location.pathname);
   const [cart,setCart]=useState(0);
-  const [diving,setDiving]=useState(false);
+  const [quantity,setQuantity]=useState(1);
+  const storePage=storePageFromPath(routePath);
   const category=pageCategories[storePage]||'Todos';
   const products=storeProducts.filter(item=>(category==='Todos'||item.category===category)&&item.name.toLowerCase().includes(query.toLowerCase()));
-  useEffect(()=>{const onPopState=()=>{setStorePage(storePageFromPath());window.scrollTo(0,0)};window.addEventListener('popstate',onPopState);return()=>window.removeEventListener('popstate',onPopState)},[]);
-  const navigateStore=page=>{if(page===storePage||diving)return;const path=storeMenu.find(([id])=>id===page)?.[2]||'/';setDiving(true);setTimeout(()=>{if(window.location.pathname!==path)window.history.pushState({},'',path);setStorePage(page);window.scrollTo(0,0);setTimeout(()=>setDiving(false),260)},220)};
-  const addToCart=name=>{setCart(value=>value+1);notify(`${name} adicionado ao carrinho`)};
+  const featuredProducts=[storeProducts[0],storeProducts[1],storeProducts[2],storeProducts[7]];
+  const selectedProduct=storePage==='produto'?storeProducts.find(item=>productSlug(item.name)===routePath.split('/').pop()):null;
+  const selectedInfo=selectedProduct?categoryInfo[selectedProduct.category]:null;
+  const relatedProducts=selectedProduct?storeProducts.filter(item=>item!==selectedProduct&&item.category===selectedProduct.category).slice(0,3):[];
+  useEffect(()=>{const onPopState=()=>{setRoutePath(window.location.pathname);window.scrollTo(0,0)};window.addEventListener('popstate',onPopState);return()=>window.removeEventListener('popstate',onPopState)},[]);
+  const navigateTo=path=>{if(path===routePath)return;if(window.location.pathname!==path)window.history.pushState({},'',path);setRoutePath(path);window.scrollTo(0,0)};
+  const navigateStore=page=>navigateTo(storeMenu.find(([id])=>id===page)?.[2]||'/');
+  const openProduct=item=>{const path=`/produto/${productSlug(item.name)}`;setQuantity(1);if(window.location.pathname!==path)window.history.pushState({},'',path);setRoutePath(path);window.scrollTo(0,0)};
+  const addToCart=(name,amount=1)=>{setCart(value=>value+amount);notify(`${amount>1?`${amount} itens`:'Produto'} adicionado ao carrinho`)};
   return <div className="storefront">
+    {storePage==='home'&&<CinematicIntro/>}
     <AquariumEffects/>
     <div className="ocean-atmosphere" aria-hidden="true"><i/><i/><i/></div>
-    <div className={`dive-transition ${diving?'active':''}`} aria-hidden="true"><span/><i/><i/><i/></div>
     <div className="store-announcement">Envio especializado para todo o Brasil <span>•</span> Atendimento por aquaristas</div>
     <header className="store-header">
       <button className="store-back" onClick={()=>go('overview')} title="Voltar ao ecossistema"><ArrowLeft size={18}/></button>
@@ -116,23 +159,21 @@ function Shop({notify,go}){
       <div className="store-search"><Search size={19}/><input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')navigateStore('produtos')}} placeholder="Busque peixes, corais, rações e equipamentos..." aria-label="Buscar produtos"/></div>
       <div className="store-actions"><button><User size={20}/><span>Minha conta</span></button><button className="cart-button"><ShoppingCart size={21}/><span>Carrinho</span>{cart>0&&<b>{cart}</b>}</button></div>
     </header>
-    <nav className="store-nav" aria-label="Menu da loja">{storeMenu.map(([id,label])=><button key={id} className={storePage===id?'active':''} onClick={()=>navigateStore(id)}>{label}</button>)}</nav>
+    <nav className="store-nav" aria-label="Menu da loja">{storeMenu.map(([id,label])=><button key={id} className={storePage===id||(storePage==='produto'&&id==='produtos')?'active':''} onClick={()=>navigateStore(id)}>{label}</button>)}</nav>
 
-    {storePage==='home'&&<><section className="store-hero">
-      <div className="water-rays" aria-hidden="true"><i/><i/><i/><i/></div>
-      <div className="water-caustics" aria-hidden="true"/>
-      <div className="hero-copy">
-        <span className="eyebrow">A VIDA MARINHA MAIS PERTO DE VOCÊ</span>
-        <h1>Seu aquário merece o extraordinário.</h1>
-        <p>Peixes selecionados, corais especiais e os melhores produtos com procedência, cuidado e suporte de verdade.</p>
-        <div className="hero-buttons"><button onClick={()=>navigateStore('produtos')}>Explorar produtos <ArrowRight size={18}/></button><button className="hero-secondary" onClick={()=>navigateStore('orcamento')}>Falar com especialista</button></div>
+    {storePage==='home'&&<><section className="store-hero editorial-hero">
+      <video className="editorial-hero-video" src="/store/clips/coral-hero.mp4" autoPlay muted loop playsInline preload="auto" aria-label="Corais coloridos com peixes tropicais"/>
+      <div className="editorial-hero-veil"/>
+      <div className="editorial-orbit editorial-orbit-one" aria-hidden="true"/>
+      <div className="editorial-orbit editorial-orbit-two" aria-hidden="true"/>
+      <div className="hero-copy editorial-copy">
+        <span className="eyebrow">VALENTE FISH • CURADORIA VIVA</span>
+        <h1>O oceano<br/>começa<br/><em>aqui.</em></h1>
+        <p>Uma experiência criada para quem não quer apenas montar um aquário, mas construir um ecossistema extraordinário.</p>
+        <div className="hero-buttons"><button onClick={()=>navigateStore('produtos')}>Descobrir coleção <ArrowRight size={18}/></button><button className="hero-secondary" onClick={()=>navigateStore('orcamento')}>Falar com curador</button></div>
       </div>
-      <div className="hero-art" aria-hidden="true">
-        <img className="hero-coral" src="/store/hero-coral.png" alt=""/>
-        <img className="hero-yellow" src="/store/hero-fish-yellow.png" alt=""/>
-        <img className="hero-clown" src="/store/hero-fish-clown.png" alt=""/>
-      </div>
-      <div className="hero-bubbles" aria-hidden="true"><i/><i/><i/><i/><i/></div>
+      <div className="editorial-hero-meta"><span>EDIÇÃO 01</span><b>VIDA<br/>EM MOVIMENTO</b><small>Cena oceânica<br/>Pexels</small></div>
+      <div className="editorial-scroll"><i/>Role para mergulhar</div>
     </section>
 
     <section className="store-trust">
@@ -142,30 +183,61 @@ function Shop({notify,go}){
       <div><MessageSquareText/><span><b>Suporte especializado</b><small>Antes e depois da compra</small></span></div>
     </section>
 
+    <section className="store-section products-section conversion-products" id="produtos">
+      <div className="section-heading"><div><span className="eyebrow">ESCOLHAS DA SEMANA</span><h2>Produtos em destaque</h2><p>Seleção pronta para você encontrar, escolher e comprar sem complicação.</p></div><button onClick={()=>navigateStore('produtos')}>Ver todos os produtos <ArrowRight size={17}/></button></div>
+      <div className="store-products">{featuredProducts.map(item=><article className="store-product" key={item.name}>{item.tag&&<span className="product-tag">{item.tag}</span>}<button className="favorite" aria-label={`Favoritar ${item.name}`}><Heart size={18}/></button><div className="store-product-image"><button className="product-open-image" onClick={()=>openProduct(item)} aria-label={`Ver detalhes de ${item.name}`}><img src={item.image} alt={item.name} loading="lazy"/></button></div><div className="store-product-body"><small>{item.category}</small><h3><button className="product-name-button" onClick={()=>openProduct(item)}>{item.name}</button></h3><div className="rating"><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><span>5.0</span></div><strong>{item.price}</strong><span className="installment">ou 3x sem juros</span><button onClick={()=>addToCart(item.name)}><ShoppingCart size={17}/> Adicionar ao carrinho</button></div></article>)}</div>
+      <button className="conversion-catalog-cta" onClick={()=>navigateStore('produtos')}>Explorar catálogo completo <ArrowRight size={18}/></button>
+    </section>
+
     <section className="store-section category-section">
       <div className="section-heading"><div><span className="eyebrow">ENCONTRE O QUE PRECISA</span><h2>Explore por categoria</h2></div><button onClick={()=>navigateStore('produtos')}>Ver catálogo completo <ArrowRight size={17}/></button></div>
       <div className="category-grid">
-        {[['peixes','Peixes','🐠','Animais selecionados'],['corais','Corais','🪸','Cores que transformam'],['racoes','Rações','◉','Nutrição de qualidade'],['filtragem','Filtragem','≋','Água limpa e saudável']].map(([page,name,icon,text])=><button key={name} onClick={()=>navigateStore(page)}><span>{icon}</span><div><b>{name}</b><small>{text}</small></div><ArrowRight size={18}/></button>)}
+        {[['peixes','Peixes','Animais selecionados'],['corais','Corais','Cores que transformam'],['racoes','Rações','Nutrição de qualidade'],['filtragem','Filtragem','Água limpa e saudável']].map(([page,name,text])=><button key={name} className={`category-card category-${page}`} onClick={()=>navigateStore(page)}><span className="category-icon"><CategoryGlyph type={page}/></span><div><b>{name}</b><small>{text}</small></div><ArrowRight size={18}/></button>)}
       </div>
     </section>
 
-    <section className="reef-stories">
-      <div className="store-section">
-        <div className="section-heading light"><div><span className="eyebrow">DIRETO DOS NOSSOS AQUÁRIOS</span><h2>Veja a Valente Fish de perto</h2></div><a href="https://www.instagram.com/valentefish/" target="_blank" rel="noreferrer"><AtSign size={18}/> Seguir no Instagram</a></div>
-        <div className="reels-grid">{reels.map(([id,title])=><a key={id} href={`https://www.youtube.com/watch?v=${id}`} target="_blank" rel="noreferrer" className="reel-card"><img src={`https://i.ytimg.com/vi/${id}/hqdefault.jpg`} alt=""/><span className="reel-play"><Play fill="currentColor"/></span><b>{title}</b></a>)}</div>
+    <section className="ocean-journal">
+      <div className="journal-heading"><span>VALENTE JOURNAL / 01</span><h2>Nosso reef.<br/><em>Nossa história.</em></h2><div><p>Animais, corais e momentos registrados dentro da própria Valente Fish. Cada cena abre o Short original.</p><a href="https://www.youtube.com/@ValenteFishCoralFarm/shorts" target="_blank" rel="noreferrer"><AtSign size={17}/> Ver canal da Valente</a></div></div>
+      <div className="journal-grid">{valenteStories.map(([id,index,label,title])=><a className="journal-clip" key={id} href={`https://www.youtube.com/shorts/${id}`} target="_blank" rel="noreferrer" aria-label={`Assistir ${title} no canal da Valente Fish`}><video src={`/store/clips/short-${id}.webm`} poster={`https://i.ytimg.com/vi/${id}/maxresdefault.jpg`} autoPlay muted loop playsInline preload="metadata"/><div className="journal-clip-shade"/><span>{index}</span><div><small>{label}</small><h3>{title}</h3></div></a>)}</div>
+      <small className="journal-credit">Clipes do canal oficial Valente Fish Coral Farm no YouTube.</small>
+    </section>
+
+    <section className="founder-story">
+      <div className="founder-visual">
+        <figure><img src="/store/brand/jr-valente-loja.png" alt="Jr. Valente na loja Valente Fish" loading="lazy"/><figcaption>Jr. Valente<br/>Fundador &amp; curador</figcaption></figure>
+        <img className="founder-social-shot" src="/store/brand/jr-valente-social.png" alt="Jr. Valente apresentando um produto da marca" loading="lazy"/>
+        <span className="founder-stamp">25+<br/>ANOS</span>
+      </div>
+      <div className="founder-copy">
+        <span className="eyebrow">QUEM ESTÁ POR TRÁS DA VALENTE</span>
+        <h2>Curadoria com<br/><em>rosto, história</em><br/>e presença.</h2>
+        <p>Jr. Valente vive o aquarismo há mais de duas décadas. É essa experiência — compartilhada diariamente com a comunidade — que orienta cada animal, coral e produto selecionado.</p>
+        <p className="founder-principle">Mais do que vender um aquário: acompanhar a construção de um ecossistema.</p>
+        <a href="https://www.instagram.com/valentefish/" target="_blank" rel="noreferrer"><AtSign size={18}/> Acompanhar o Jr. e a Valente no Instagram <ArrowRight size={17}/></a>
       </div>
     </section>
     </>}
 
-    {storePage!=='orcamento'&&<section key={storePage} className={storePage==='home'?'store-section products-section':'store-page-hero'} id="produtos">
-      <div className="section-heading"><div><span className="eyebrow">CATÁLOGO VALENTE FISH</span><h2>{storePage==='home'?'Produtos em destaque':category==='Todos'?'Todos os produtos':category}</h2>{storePage!=='home'&&<p>Seleção Valente Fish com estoque integrado e atendimento especializado.</p>}</div><span className="stock-live"><i/> Estoque sincronizado</span></div>
-      {products.length?<div className="store-products">{products.map(item=><article className="store-product" key={item.name}>{item.tag&&<span className="product-tag">{item.tag}</span>}<button className="favorite" aria-label={`Favoritar ${item.name}`}><Heart size={18}/></button><div className="store-product-image"><img src={item.image} alt={item.name} loading="lazy"/></div><div className="store-product-body"><small>{item.category}</small><h3>{item.name}</h3><div className="rating"><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><span>5.0</span></div><strong>{item.price}</strong><span className="installment">ou 3x sem juros</span><button onClick={()=>addToCart(item.name)}><ShoppingCart size={17}/> Adicionar ao carrinho</button></div></article>)}</div>:<div className="empty-products"><Search size={30}/><h3>Nenhum produto encontrado</h3><p>Tente buscar por outro termo ou categoria.</p><button onClick={()=>{setQuery('');navigateStore('produtos')}}>Limpar filtros</button></div>}
+    {storePage!=='home'&&storePage!=='orcamento'&&storePage!=='produto'&&<section key={storePage} className="store-page-hero" id="produtos">
+      <div className="section-heading"><div><span className="eyebrow">CATÁLOGO VALENTE FISH</span><h2>{category==='Todos'?'Todos os produtos':category}</h2><p>Seleção Valente Fish com estoque integrado e atendimento especializado.</p></div><span className="stock-live"><i/> Estoque sincronizado</span></div>
+      {products.length?<div className="store-products">{products.map(item=><article className="store-product" key={item.name}>{item.tag&&<span className="product-tag">{item.tag}</span>}<button className="favorite" aria-label={`Favoritar ${item.name}`}><Heart size={18}/></button><div className="store-product-image"><button className="product-open-image" onClick={()=>openProduct(item)} aria-label={`Ver detalhes de ${item.name}`}><img src={item.image} alt={item.name} loading="lazy"/></button></div><div className="store-product-body"><small>{item.category}</small><h3><button className="product-name-button" onClick={()=>openProduct(item)}>{item.name}</button></h3><div className="rating"><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><Star size={14} fill="currentColor"/><span>5.0</span></div><strong>{item.price}</strong><span className="installment">ou 3x sem juros</span><button onClick={()=>addToCart(item.name)}><ShoppingCart size={17}/> Adicionar ao carrinho</button></div></article>)}</div>:<div className="empty-products"><Search size={30}/><h3>Nenhum produto encontrado</h3><p>Tente buscar por outro termo ou categoria.</p><button onClick={()=>{setQuery('');navigateStore('produtos')}}>Limpar filtros</button></div>}
     </section>}
 
+    {storePage==='produto'&&selectedProduct&&<main key={routePath} className="product-detail-page">
+      <div className="product-breadcrumb"><button onClick={()=>navigateStore('home')}>Início</button><span>/</span><button onClick={()=>navigateStore(Object.keys(pageCategories).find(key=>pageCategories[key]===selectedProduct.category)||'produtos')}>{selectedProduct.category}</button><span>/</span><b>{selectedProduct.name}</b></div>
+      <section className="product-detail-main">
+        <div className="product-detail-gallery"><span className="product-detail-tag">{selectedProduct.tag||'Valente Fish'}</span><button className="product-detail-favorite" aria-label={`Favoritar ${selectedProduct.name}`}><Heart/></button><div className="product-detail-glow"/><img src={selectedProduct.image} alt={selectedProduct.name}/><small>Imagem ilustrativa. Consulte a disponibilidade do lote.</small></div>
+        <div className="product-detail-info"><span className="eyebrow">{selectedProduct.category}</span><h1>{selectedProduct.name}</h1><div className="product-detail-rating"><div className="rating">{[1,2,3,4,5].map(n=><Star key={n} size={17} fill="currentColor"/>)}</div><span>5.0 • Produto selecionado</span></div><span className="product-availability"><i/> Disponível em estoque</span><p className="product-description">{selectedInfo.description}</p><div className="product-detail-price"><strong>{selectedProduct.price}</strong><span>ou em até 3x sem juros</span></div><div className="product-purchase"><div className="quantity-control"><button onClick={()=>setQuantity(value=>Math.max(1,value-1))} aria-label="Diminuir quantidade">−</button><b>{quantity}</b><button onClick={()=>setQuantity(value=>value+1)} aria-label="Aumentar quantidade">+</button></div><button className="product-add-button" onClick={()=>addToCart(selectedProduct.name,quantity)}><ShoppingCart size={19}/> Adicionar ao carrinho</button></div><a className="product-help" href="https://api.whatsapp.com/send/?phone=5521987128089" target="_blank" rel="noreferrer"><MessageCircle size={18}/> Tirar dúvidas com um especialista</a><div className="product-detail-trust"><span><ShieldCheck/> Compra segura</span><span><Truck/> Envio especializado</span><span><BadgeCheck/> Procedência garantida</span></div></div>
+      </section>
+      <section className="product-detail-content"><article><span className="eyebrow">CONHEÇA O PRODUTO</span><h2>Descrição</h2><p>{selectedInfo.description}</p><p>Nossa equipe acompanha a seleção, conservação e preparação de cada item para oferecer mais segurança antes, durante e depois da compra.</p></article><article><span className="eyebrow">INFORMAÇÕES IMPORTANTES</span><h2>Detalhes</h2><ul>{selectedInfo.details.map(detail=><li key={detail}><Check size={17}/>{detail}</li>)}</ul></article><article><span className="eyebrow">DA VALENTE ATÉ VOCÊ</span><h2>Entrega e cuidados</h2><p>O prazo e a modalidade de envio são definidos conforme o destino e o tipo de produto. Animais recebem embalagem e transporte específicos.</p><button onClick={()=>navigateStore('orcamento')}>Consultar entrega <ArrowRight size={17}/></button></article></section>
+      {relatedProducts.length>0&&<section className="related-products"><div className="section-heading"><div><span className="eyebrow">VOCÊ TAMBÉM PODE GOSTAR</span><h2>Produtos relacionados</h2></div></div><div>{relatedProducts.map(item=><button key={item.name} onClick={()=>openProduct(item)}><span><img src={item.image} alt=""/></span><small>{item.category}</small><b>{item.name}</b><strong>{item.price}</strong><i>Ver detalhes <ArrowRight size={15}/></i></button>)}</div></section>}
+    </main>}
+    {storePage==='produto'&&!selectedProduct&&<section className="product-not-found"><Search size={36}/><h1>Produto não encontrado</h1><p>Este produto pode ter sido removido ou está temporariamente indisponível.</p><button onClick={()=>navigateStore('produtos')}>Voltar ao catálogo</button></section>}
+
     {storePage==='home'&&<><section className="special-order">
-      <iframe src="https://www.youtube.com/embed/843Rpqza_6o?autoplay=1&mute=1&controls=0&loop=1&playlist=843Rpqza_6o&modestbranding=1&playsinline=1" title="Vida marinha" loading="lazy" allow="autoplay; encrypted-media" tabIndex="-1" aria-hidden="true"/>
+      <video src="/store/clips/coral-cta.mp4" autoPlay muted loop playsInline preload="metadata" aria-label="Peixes coloridos sobre um recife de corais"/>
       <div className="special-overlay"/>
-      <div className="special-copy"><span className="eyebrow">NÃO ENCONTROU O QUE PROCURAVA?</span><h2>Deseja algum animal ou produto específico?</h2><p>Nossa equipe encontra a melhor opção para o seu aquário.</p><button onClick={()=>navigateStore('orcamento')}>Solicitar orçamento <ArrowRight size={18}/></button></div>
+      <span className="special-index">PERSONAL<br/>CURATION<br/>— 01</span><div className="special-copy"><span className="eyebrow">CURADORIA PERSONALIZADA</span><h2>Procurando algo que ainda não encontrou?</h2><p>Conte sua ideia. Nossa equipe pesquisa espécies, produtos e soluções para transformar o seu projeto em realidade.</p><button onClick={()=>navigateStore('orcamento')}>Começar uma conversa <ArrowRight size={18}/></button></div>
     </section>
 
     <section className="store-section brands-section"><span className="eyebrow">PARCEIROS DE CONFIANÇA</span><h2>As melhores marcas do aquarismo</h2><div className="brand-track">{[1,2,3,5,7,8,9,11,12].map(n=><div key={n}><img src={`/store/brand-${n}.png`} alt={`Marca parceira ${n}`} loading="lazy"/></div>)}</div></section>
