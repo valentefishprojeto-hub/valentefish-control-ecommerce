@@ -1,3 +1,5 @@
+import {getSupabase} from './supabaseClient';
+
 const CART_KEY='vf-cart';
 const SESSION_KEY='vf-session';
 const ORDERS_KEY='vf-orders';
@@ -88,7 +90,6 @@ export function saveOrder(order){
 export async function api(path,options={}){
   const headers={'content-type':'application/json',...options.headers};
   try{
-    const {getSupabase}=await import('./supabaseClient');
     const {data}=await getSupabase().auth.getSession();
     if(data.session?.access_token) headers.authorization=`Bearer ${data.session.access_token}`;
   }catch{}
