@@ -4,6 +4,7 @@ import {MessageCircle,AtSign,Check,ArrowRight,Search,ShoppingCart,User,Truck,Shi
 import {api,cartCount,cartSubtotal,fallbackQuotes,formatPrice,loadCart,loadOrders,lookupCep,priceValue,saveCart,saveOrder,setCartQuantity,upsertCartItem} from './commerce';
 import {authMessage,currentSession,loadProfile,loginAccount as signInAccount,loginWithGoogle,logoutAccount as signOutAccount,onAuthChange,registerAccount as signUpAccount,updateAccount} from './auth';
 import {FEATURED_LIMIT,categoryPath,fallbackCategories,loadCatalog} from './catalog';
+import {BrandLockup} from './brand';
 import {track,trackCart} from './track';
 const ErpApp=React.lazy(()=>import('./erp').then(module=>({default:module.ErpApp})));
 
@@ -67,7 +68,7 @@ function CinematicIntro(){
     <div className="intro-school" aria-hidden="true">{Array.from({length:12},(_,index)=><i key={index}/>)}</div>
     <img className="intro-fish intro-fish-yellow" src="/store/product-fish-yellow.png" alt=""/>
     <img className="intro-fish intro-fish-clown" src="/store/product-fish-clown.png" alt=""/>
-    <div className="intro-brand"><span>MERGULHE NO UNIVERSO</span><img src="/valente-fish-logo.png" alt="Valente Fish"/></div>
+    <div className="intro-brand"><span>MERGULHE NO UNIVERSO</span><BrandLockup tone="light" layout="stacked"/></div>
     <div className="intro-bubbles" aria-hidden="true">{Array.from({length:9},(_,index)=><i key={index}/>)}</div>
     <button onClick={finish}>Pular introdução</button>
   </div>
@@ -602,7 +603,7 @@ function Shop({notify}){
     <div className="store-announcement">Envio especializado para todo o Brasil <span>•</span> Atendimento por aquaristas</div>
     <header className="store-header">
       {storePage==='home'?<span className="store-back-spacer" aria-hidden="true"/>:<button className="store-back" onClick={goStoreBack} aria-label="Voltar"><ArrowLeft size={18}/></button>}
-      <button className="store-logo-button" onClick={()=>navigateStore('home')} aria-label="Ir para o início"><img src="/valente-fish-logo.png" alt="Valente Fish" className="store-logo"/></button>
+      <button className="store-logo-button" onClick={()=>navigateStore('home')} aria-label="Ir para o início"><BrandLockup tone="light" className="store-logo"/></button>
       <div className="store-search"><Search size={19}/><input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){if(query.trim())track('search',{query:query.trim()});navigateStore('produtos')}}} placeholder="Busque peixes, corais, rações e equipamentos..." aria-label="Buscar produtos"/></div>
       <div className="store-actions"><button className={['conta','entrar','criar-conta'].includes(storePage)?'active':''} onClick={()=>navigateTo(session?'/conta':'/conta/entrar')}><User size={20}/><span>{session?session.name.split(' ')[0]:'Entrar'}</span></button><button className={`cart-button${storePage==='carrinho'||miniCartOpen?' active':''}`} onClick={()=>setMiniCartOpen(true)}><ShoppingCart size={21}/><span>Carrinho</span>{cart>0&&<b>{cart}</b>}</button></div>
     </header>
@@ -700,7 +701,7 @@ function Shop({notify}){
 
     {storePage==='orcamento'&&<section key={storePage} className="budget-page"><div className="budget-jelly" aria-hidden="true">◯</div><div className="budget-copy"><span className="eyebrow">ATENDIMENTO PERSONALIZADO</span><h1>Encontre o animal ou produto ideal.</h1><p>Conte o que você procura e um especialista da Valente Fish entrará em contato para orientar e preparar seu orçamento.</p><div className="budget-benefits"><span><BadgeCheck/> Orientação de aquaristas</span><span><ShieldCheck/> Animais com procedência</span><span><Truck/> Envio especializado</span></div></div><form className="budget-form" onSubmit={e=>{e.preventDefault();notify('Solicitação enviada com sucesso')}}><h2>Solicitar orçamento</h2><label>Nome<input required placeholder="Seu nome"/></label><label>WhatsApp<input required type="tel" placeholder="(21) 99999-9999"/></label><label>O que você procura?<select required defaultValue=""><option value="" disabled>Selecione uma categoria</option><option>Peixe</option><option>Coral</option><option>Ração</option><option>Equipamento</option><option>Outro produto</option></select></label><label>Detalhes<textarea rows="4" placeholder="Espécie, marca, tamanho ou qualquer informação importante"/></label><button type="submit">Enviar solicitação <ArrowRight size={18}/></button><a href="https://api.whatsapp.com/send/?phone=5521987128089" target="_blank" rel="noreferrer">Prefiro falar agora pelo WhatsApp</a></form></section>}
 
-    <footer className="store-footer"><div><img src="/valente-fish-logo.png" alt="Valente Fish"/><p>Referência em aquarismo marinho, animais selecionados e atendimento especializado.</p></div><div><b>Loja</b><button onClick={()=>navigateStore('produtos')}>Produtos</button><button onClick={()=>navigateTo('/carrinho')}>Carrinho</button><button onClick={()=>navigateTo('/conta')}>Minha conta</button></div><div><b>Atendimento</b><button onClick={()=>navigateStore('orcamento')}>Solicitar orçamento</button><span>Jardim Sulacap — RJ</span><span>Envio para todo o Brasil</span></div><div><b>Redes sociais</b><a href="https://www.instagram.com/valentefish/"><AtSign size={17}/> @valentefish</a></div><a className="dev-credit" href="https://tironitech.com" target="_blank" rel="noreferrer"><span className="dev-credit-mark" aria-hidden="true">TT</span><span className="dev-credit-text"><small>Desenvolvido por</small><b>Tironi Tech</b></span></a></footer>
+    <footer className="store-footer"><div><BrandLockup tone="light"/><p>Referência em aquarismo marinho, animais selecionados e atendimento especializado.</p></div><div><b>Loja</b><button onClick={()=>navigateStore('produtos')}>Produtos</button><button onClick={()=>navigateTo('/carrinho')}>Carrinho</button><button onClick={()=>navigateTo('/conta')}>Minha conta</button></div><div><b>Atendimento</b><button onClick={()=>navigateStore('orcamento')}>Solicitar orçamento</button><span>Jardim Sulacap — RJ</span><span>Envio para todo o Brasil</span></div><div><b>Redes sociais</b><a href="https://www.instagram.com/valentefish/"><AtSign size={17}/> @valentefish</a></div><a className="dev-credit" href="https://tironitech.com" target="_blank" rel="noreferrer"><span className="dev-credit-mark" aria-hidden="true">TT</span><span className="dev-credit-text"><small>Desenvolvido por</small><b>Tironi Tech</b></span></a></footer>
     <CartDrawer open={miniCartOpen} items={cartItems} added={cartNotice} onClose={()=>setMiniCartOpen(false)} onQuantity={changeQuantity} onRemove={removeItem} onCart={()=>{setMiniCartOpen(false);navigateTo('/carrinho')}} onCheckout={()=>{setMiniCartOpen(false);navigateTo(session?'/checkout':'/conta/entrar?next=/checkout')}}/>
     <a className="store-whatsapp" href="https://api.whatsapp.com/send/?phone=5521987128089" target="_blank" rel="noreferrer" aria-label="Falar pelo WhatsApp">WA</a>
   </div>

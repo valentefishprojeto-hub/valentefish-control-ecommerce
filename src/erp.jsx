@@ -3,6 +3,7 @@ import {createPortal} from 'react-dom';
 import {ArrowUpRight,AtSign,Boxes,Globe,ImagePlus,LayoutDashboard,Package,Plus,Search,ShoppingBag,Store,Trash2,Users,Wallet,X} from 'lucide-react';
 import {api,formatPrice} from './commerce';
 import {getSupabase} from './supabaseClient';
+import {BrandLockup} from './brand';
 import {FEATURED_LIMIT,moneyInput} from './catalog';
 
 const groups=[
@@ -207,7 +208,7 @@ export function ErpApp({notify}){
 
   return <div className="app erp-app">
     <aside>
-      <div className="brand"><img src="/valente-fish-logo.png" alt="Valente Fish"/></div>
+      <div className="brand"><BrandLockup tone="light" layout="stacked"/></div>
       <nav>
         {groups.map(([label,items])=><div className="erp-nav-group" key={label}>
           <small>{label}</small>
