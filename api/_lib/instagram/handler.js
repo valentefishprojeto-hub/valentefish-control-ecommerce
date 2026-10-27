@@ -4,6 +4,7 @@ import {db} from '../db.js';
 import {createGraph} from './graph.js';
 import {createTools,pauseHours} from './tools.js';
 import {runAgent,directAction} from './agent.js';
+import {catalogReply} from './catalogReply.js';
 import {splitText} from './text.js';
 import {storyReply,smallTalk} from './conversation.js';
 
@@ -89,6 +90,7 @@ export function createHandler({sql,env=process.env,graph=createGraph({env}),agen
       else if(message.reply_to?.story){result={text:storyReply(text)};}
       else if(!text||attachments.length){result={text:'Ainda não consigo avaliar esse conteúdo. Pode enviar sua dúvida por texto?'};}
       else if(smallTalk(text)){result={text:smallTalk(text)};}
+      else if(agent===runAgent&&(!env.ANTHROPIC_API_KEY||!env.ANTHROPIC_MODEL)){result=await catalogReply(text,tools);}
       else{
         const history=await sql`select author,text from public.ig_messages where conversation_id=${conversation.id} and id<>${messageId} order by created_at desc limit 12`;
         result=await agent({text,history:history.reverse(),tools,env});

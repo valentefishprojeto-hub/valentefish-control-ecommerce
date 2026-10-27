@@ -13,7 +13,7 @@ export function inspectConfig(env=process.env,{scope='dm'}={}){
   check('IG_BUSINESS_ID',v=>/^\d+$/.test(v));
   check('IG_ACCESS_TOKEN');check('META_GRAPH_VERSION',v=>/^v\d+\.\d+$/.test(v));
   if(scope==='dm'){
-    check('META_APP_SECRET');check('META_VERIFY_TOKEN');check('ANTHROPIC_API_KEY');check('ANTHROPIC_MODEL');
+    check('META_APP_SECRET');check('META_VERIFY_TOKEN');check('ANTHROPIC_API_KEY',present,false);check('ANTHROPIC_MODEL',present,false);
     check('IG_BOT_ENABLED',v=>['true','false'].includes(v));
     check('IG_HUMAN_PAUSE_HOURS',v=>Number.isFinite(Number(v))&&Number(v)>0,false);
     check('MELHOR_ENVIO_TOKEN',present,false);check('STORE_POSTAL_CODE',v=>/^\d{8}$/.test(v),false);
