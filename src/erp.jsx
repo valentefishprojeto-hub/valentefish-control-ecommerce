@@ -5,6 +5,7 @@ import {api,formatPrice} from './commerce';
 import {getSupabase} from './supabaseClient';
 import {BrandLockup} from './brand';
 import {FEATURED_LIMIT,moneyInput} from './catalog';
+import InstagramMarketing from './InstagramMarketing';
 
 const groups=[
   ['Operação',[
@@ -17,6 +18,9 @@ const groups=[
     ['vendas','Vendas',ShoppingBag,'PDV com baixa de estoque'],
     ['clientes','Clientes',Users,'Cadastro e histórico'],
     ['financeiro','Financeiro',Wallet,'Receitas e despesas']
+  ]],
+  ['Marketing',[
+    ['instagram','Instagram',AtSign,'Modelos, programação automática e histórico de publicações']
   ]],
   ['Digital',[
     ['ecommerce','E-commerce',Globe,'Buscas, carrinhos, origem e comportamento']
@@ -225,6 +229,8 @@ export function ErpApp({notify}){
           <a className="sync" href="/" target="_blank" rel="noreferrer">Abrir loja <ArrowUpRight size={16}/></a>
         </div>
       </header>
+
+      {page==='instagram'&&<InstagramMarketing notify={notify}/>}
 
       {page==='painel'&&dashboard&&<>
         <div className="erp-kpis">

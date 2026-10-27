@@ -18,6 +18,8 @@ import upload from './_routes/erp/upload.js';
 import quote from './_routes/shipping/quote.js';
 import tracking from './_routes/shipping/tracking.js';
 import mercadoPago from './_routes/webhooks/mercado-pago.js';
+import instagram from './_routes/webhooks/instagram.js';
+import instagramMarketing,{cron as instagramPublisher} from './_routes/marketing/instagram.js';
 
 const routes={
   account,
@@ -28,6 +30,9 @@ const routes={
   orders,
   products,
   track,
+  'webhooks/instagram':instagram,
+  'marketing/instagram':instagramMarketing,
+  'marketing/instagram/run':instagramPublisher,
   'erp/categories':categories,
   'erp/commerce':commerce,
   'erp/customers':customers,

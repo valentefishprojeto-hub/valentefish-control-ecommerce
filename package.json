@@ -4,18 +4,28 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "test:instagram": "node --test api/_lib/instagram/*.test.js",
+    "instagram:simulate": "node scripts/ig-simulate.mjs --offline",
+    "instagram:check": "node scripts/ig-check-config.mjs",
+    "instagram:test-posts": "node --test api/_lib/instagram/publishing.test.js api/_lib/instagram/publishing-graph.test.js",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
+    "@vercel/functions": "3.10.3",
     "@vitejs/plugin-react": "latest",
     "lucide-react": "latest",
     "postgres": "^3.4.9",
     "react": "latest",
     "react-dom": "latest",
+    "sharp": "0.35.5",
     "typescript": "latest",
     "vite": "latest"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.11",
+    "@vercel/node": "27.0.1"
   }
 }
