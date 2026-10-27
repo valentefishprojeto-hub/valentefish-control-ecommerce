@@ -1,6 +1,19 @@
 import {randomUUID} from 'node:crypto';
 import {setTimeout as sleep} from 'node:timers/promises';
 
+// Apps criados antes de 2026 usam Instagram Login (graph.instagram.com, /me).
+// Apps novos usam Unified Login: token de usuário do sistema em graph.facebook.com, endereçado pelo ID da conta.
+export function graphHost(env=process.env){
+  return env.IG_API_HOST==='graph.facebook.com'?'graph.facebook.com':'graph.instagram.com';
+}
+
+export function messagesEndpoint(env=process.env){
+  const host=graphHost(env);
+  if(host==='graph.instagram.com') return `https://${host}/${env.META_GRAPH_VERSION}/me/messages`;
+  if(!/^\d+$/.test(env.IG_BUSINESS_ID||'')) throw new Error('Instagram não configurado');
+  return `https://${host}/${env.META_GRAPH_VERSION}/${env.IG_BUSINESS_ID}/messages`;
+}
+
 export function createGraph({env=process.env,fetch:request=fetch,sleep:pause=sleep,log=console.log}={}){
   async function send(igsid,body){
     if(env.IG_DRY_RUN==='true'){
@@ -9,8 +22,9 @@ export function createGraph({env=process.env,fetch:request=fetch,sleep:pause=sle
       log({instagram_dry_run:true,...body});return {message_id:`dry-${randomUUID()}`};
     }
     if(!env.IG_ACCESS_TOKEN||!/^v\d+\.\d+$/.test(env.META_GRAPH_VERSION||'')) throw new Error('Instagram não configurado');
+    const endpoint=messagesEndpoint(env);
     for(let attempt=0;attempt<3;attempt++){
-      const response=await request(`https://graph.instagram.com/${env.META_GRAPH_VERSION}/me/messages`,{
+      const response=await request(endpoint,{
         method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${env.IG_ACCESS_TOKEN}`},
         body:JSON.stringify({recipient:{id:igsid},...body}),signal:AbortSignal.timeout(5000)
       });

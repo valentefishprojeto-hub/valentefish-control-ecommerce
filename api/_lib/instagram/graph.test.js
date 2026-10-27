@@ -18,3 +18,11 @@ test('dry run não usa rede, não loga destinatário nem token',async()=>{
   const result=await graph.sendText('cliente-secreto','Olá');
   assert.ok(result.message_id.startsWith('dry-'));assert.equal(JSON.stringify(logs).includes('cliente-secreto'),false);
 });
+
+test('Unified Login envia por graph.facebook.com usando o ID da conta', async()=>{
+  const {messagesEndpoint}=await import('./graph.js');
+  assert.equal(messagesEndpoint({META_GRAPH_VERSION:'v23.0'}),'https://graph.instagram.com/v23.0/me/messages');
+  assert.equal(messagesEndpoint({META_GRAPH_VERSION:'v23.0',IG_API_HOST:'graph.facebook.com',IG_BUSINESS_ID:'17841400000000000'}),'https://graph.facebook.com/v23.0/17841400000000000/messages');
+  assert.throws(()=>messagesEndpoint({META_GRAPH_VERSION:'v23.0',IG_API_HOST:'graph.facebook.com'}),/não configurado/);
+  assert.equal(messagesEndpoint({META_GRAPH_VERSION:'v23.0',IG_API_HOST:'evil.example.com'}),'https://graph.instagram.com/v23.0/me/messages');
+});

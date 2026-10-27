@@ -1,7 +1,9 @@
+import {graphHost} from './graph.js';
+
 export function publishingGraph({env=process.env,fetch:request=fetch}={}){
   const root=()=>{
     if(!env.IG_ACCESS_TOKEN||!/^\d+$/.test(env.IG_BUSINESS_ID||'')||!/^v\d+\.\d+$/.test(env.META_GRAPH_VERSION||'')) throw new Error('Publicação no Instagram não configurada');
-    return `https://graph.instagram.com/${env.META_GRAPH_VERSION}`;
+    return `https://${graphHost(env)}/${env.META_GRAPH_VERSION}`;
   };
   async function call(path,input){
     const response=await request(root()+'/'+path,{method:input?'POST':'GET',headers:{authorization:`Bearer ${env.IG_ACCESS_TOKEN}`,...(input?{'content-type':'application/json'}:{})},...(input?{body:JSON.stringify(input)}:{}),signal:AbortSignal.timeout(12000)});

@@ -22,6 +22,7 @@ export function inspectConfig(env=process.env,{scope='dm'}={}){
     check(env.SUPABASE_SERVICE_ROLE_KEY?'SUPABASE_SERVICE_ROLE_KEY':'SUPABASE_SECRET_KEY');
     check('CRON_SECRET');check('IG_PUBLISH_ENABLED',v=>['true','false'].includes(v));
   }
+  check('IG_API_HOST',v=>['graph.instagram.com','graph.facebook.com'].includes(v),false);
   check('IG_DRY_RUN',v=>['true','false'].includes(v),false);
   const errors=checks.filter(x=>(x.required&&x.status==='ausente')||x.status==='inválido').map(x=>x.name);
   if(env.VERCEL_ENV==='production'&&env.IG_DRY_RUN==='true') errors.push('IG_DRY_RUN não permitido em produção');
