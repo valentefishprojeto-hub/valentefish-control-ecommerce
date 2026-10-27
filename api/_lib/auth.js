@@ -21,3 +21,23 @@ export async function currentUser(req,{required=false}={}){
   }
   return response.json();
 }
+
+// Só app_metadata (definido pelo servidor) ou a lista IG_PUBLISH_ADMIN_IDS concedem acesso; user_metadata é editável pelo próprio usuário.
+export function isAdmin(user,env=process.env){
+  return !!user&&(user.app_metadata?.role==='admin'||String(env.IG_PUBLISH_ADMIN_IDS||'').split(',').map(x=>x.trim()).filter(Boolean).includes(user.id));
+}
+
+export function adminOnly(handler,{authenticate=currentUser,env=process.env}={}){
+  return async function guarded(req,res){
+    res.setHeader('Cache-Control','no-store');
+    let user;
+    try{
+      user=await authenticate(req,{required:true});
+    }catch(error){
+      return res.status(error.status||500).json({error:error.status?error.message:'Não foi possível validar o acesso'});
+    }
+    if(!isAdmin(user,env)) return res.status(403).json({error:'Esta área está disponível apenas para administradores autorizados'});
+    req.user=user;
+    return handler(req,res);
+  };
+}

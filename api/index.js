@@ -1,3 +1,4 @@
+import {adminOnly} from './_lib/auth.js';
 import account from './_routes/account.js';
 import cart from './_routes/cart.js';
 import catalog from './_routes/catalog.js';
@@ -33,15 +34,15 @@ const routes={
   'webhooks/instagram':instagram,
   'marketing/instagram':instagramMarketing,
   'marketing/instagram/run':instagramPublisher,
-  'erp/categories':categories,
-  'erp/commerce':commerce,
-  'erp/customers':customers,
-  'erp/dashboard':dashboard,
-  'erp/finance':finance,
-  'erp/products':erpProducts,
-  'erp/sales':sales,
-  'erp/stock':stock,
-  'erp/upload':upload,
+  'erp/categories':adminOnly(categories),
+  'erp/commerce':adminOnly(commerce),
+  'erp/customers':adminOnly(customers),
+  'erp/dashboard':adminOnly(dashboard),
+  'erp/finance':adminOnly(finance),
+  'erp/products':adminOnly(erpProducts),
+  'erp/sales':adminOnly(sales),
+  'erp/stock':adminOnly(stock),
+  'erp/upload':adminOnly(upload),
   'shipping/quote':quote,
   'shipping/tracking':tracking,
   'webhooks/mercado-pago':mercadoPago

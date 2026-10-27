@@ -123,8 +123,48 @@ function ProductForm({categories,initial,busy,onSubmit,notify}){
   </form>;
 }
 
+function AdminLogin({denied,onSuccess}){
+  const [credentials,setCredentials]=useState({email:'',password:''});
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState('');
+  const submit=async event=>{
+    event.preventDefault();
+    setBusy(true);setError('');
+    try{
+      const {error:failure}=await getSupabase().auth.signInWithPassword(credentials);
+      if(failure) throw failure;
+      setCredentials({email:'',password:''});
+      await onSuccess();
+    }catch(failure){
+      setError(/Autenticação ainda não configurada/.test(failure?.message||'')?'Login indisponível: Supabase não configurado.':'Não foi possível entrar. Confira e-mail e senha.');
+    }finally{
+      setBusy(false);
+    }
+  };
+  const signOut=async()=>{
+    try{await getSupabase().auth.signOut()}catch{}
+    window.location.reload();
+  };
+  return <div className="erp-login">
+    <form className="erp-form" onSubmit={submit}>
+      <BrandLockup layout="stacked"/>
+      <h1>Acesso administrativo</h1>
+      {denied?<>
+        <p role="alert">Esta conta não tem permissão para acessar o ERP.</p>
+        <button type="button" className="erp-ghost" onClick={signOut}>Entrar com outra conta</button>
+      </>:<>
+        <Field label="E-mail"><input type="email" autoComplete="username" required value={credentials.email} onChange={e=>setCredentials({...credentials,email:e.target.value})}/></Field>
+        <Field label="Senha"><input type="password" autoComplete="current-password" required value={credentials.password} onChange={e=>setCredentials({...credentials,password:e.target.value})}/></Field>
+        {error&&<p role="alert">{error}</p>}
+        <button type="submit" disabled={busy}>{busy?'Entrando...':'Entrar no ERP'}</button>
+      </>}
+    </form>
+  </div>;
+}
+
 export function ErpApp({notify}){
   const [page,setPage]=useState(()=>pageFromPath(window.location.pathname));
+  const [access,setAccess]=useState('checking');
   const [busy,setBusy]=useState(false);
   const [search,setSearch]=useState('');
   const [filter,setFilter]=useState('todos');
@@ -164,7 +204,11 @@ export function ErpApp({notify}){
       ]);
       setDashboard(dash);setProducts(productData.products||[]);setCategories(categoryData.categories||[]);
       setStock(stockData);setCustomers(customerData.customers||[]);setSales(saleData.sales||[]);setFinance(financeData);setCommerce(commerceData);
+      setAccess('ok');
     }catch(error){
+      if(error.status===401) return setAccess('login');
+      if(error.status===403) return setAccess('denied');
+      setAccess('ok');
       notify(error.message||'Não foi possível carregar o ERP');
     }
   };
@@ -178,6 +222,7 @@ export function ErpApp({notify}){
       setModal(null);setEditing(null);
       if(ok) notify(ok);
     }catch(error){
+      if(error.status===401) setAccess('login');
       notify(error.message||'Não foi possível salvar');
     }finally{
       setBusy(false);
@@ -209,6 +254,9 @@ export function ErpApp({notify}){
   },0),[saleForm.items,products]);
   const commerceSources=commerce?.sources||[];
   const sourceTotal=commerceSources.reduce((sum,item)=>sum+item.visitors,0)||1;
+
+  if(access==='checking') return <div className="erp-boot">Carregando ERP...</div>;
+  if(access!=='ok') return <AdminLogin denied={access==='denied'} onSuccess={loadAll}/>;
 
   return <div className="app erp-app">
     <aside>

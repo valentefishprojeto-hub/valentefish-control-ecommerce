@@ -49,7 +49,11 @@ function localApi(){
           req.query=Object.fromEntries(url.searchParams);
           req.body=await readBody(req);
           const href=`${pathToFileURL(fileURLToPath(new URL(file,import.meta.url))).href}?t=${Date.now()}`;
-          const mod=await import(href);
+          let handler=(await import(href)).default;
+          if(url.pathname.startsWith('/api/erp/')){
+            const auth=await import(pathToFileURL(fileURLToPath(new URL('./api/_lib/auth.js',import.meta.url))).href);
+            handler=auth.adminOnly(handler);
+          }
           const reply={
             statusCode:200,
             setHeader:(key,value)=>res.setHeader(key,value),
@@ -57,7 +61,7 @@ function localApi(){
             json(data){res.statusCode=this.statusCode||200;res.setHeader('Content-Type','application/json');res.end(JSON.stringify(data));return this},
             end(data){res.end(data);return this}
           };
-          await mod.default(req,reply);
+          await handler(req,reply);
         }catch(error){
           res.statusCode=500;
           res.setHeader('Content-Type','application/json');
@@ -71,7 +75,7 @@ function localApi(){
 export default defineConfig(({command,mode})=>{
   if(command==='serve'){
     const env=loadEnv(mode,process.cwd(),'');
-    for(const key of ['DATABASE_URL','SUPABASE_URL','SUPABASE_ANON_KEY','SUPABASE_SERVICE_ROLE_KEY','SUPABASE_SECRET_KEY','VITE_SUPABASE_URL','VITE_SUPABASE_ANON_KEY']){
+    for(const key of ['DATABASE_URL','SUPABASE_URL','SUPABASE_ANON_KEY','SUPABASE_SERVICE_ROLE_KEY','SUPABASE_SECRET_KEY','SUPABASE_PUBLISHABLE_KEY','IG_PUBLISH_ADMIN_IDS','VITE_SUPABASE_URL','VITE_SUPABASE_ANON_KEY']){
       if(env[key]&&!process.env[key]) process.env[key]=env[key];
     }
   }

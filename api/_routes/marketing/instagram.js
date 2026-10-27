@@ -1,5 +1,5 @@
 import {timingSafeEqual} from 'node:crypto';
-import {currentUser} from '../../_lib/auth.js';
+import {currentUser,isAdmin} from '../../_lib/auth.js';
 import {body,method} from '../../_lib/http.js';
 import {db} from '../../_lib/db.js';
 import {validateTemplate,validateSchedule,captionFor} from '../../../shared/instagram-publishing.js';
@@ -7,7 +7,7 @@ import {allowedAsset,renderPublication} from '../../_lib/instagram/publishing-me
 import {runPublishing} from '../../_lib/instagram/publishing.js';
 
 const uuid=value=>typeof value==='string'&&/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(value);
-export function isAdmin(user,env=process.env){return !!user&&(user.app_metadata?.role==='admin'||String(env.IG_PUBLISH_ADMIN_IDS||'').split(',').map(x=>x.trim()).filter(Boolean).includes(user.id));}
+export {isAdmin};
 export function cronAuthorized(req,env=process.env){
   const expected=env.CRON_SECRET?'Bearer '+env.CRON_SECRET:'';
   const actual=req.headers?.authorization;
