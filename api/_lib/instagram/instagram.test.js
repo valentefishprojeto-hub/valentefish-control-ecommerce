@@ -52,3 +52,15 @@ test('split UTF-8 preserva URLs e limita a três partes',()=>{
   assert.throws(()=>splitText('a'.repeat(4000)),/longa/);
   assert.throws(()=>splitText('https://loja.test/'+ 'a'.repeat(1100)),/longa/);
 });
+
+test('webhook aceita o Instagram app secret e ignora espaços colados no segredo',async()=>{
+  const {webhookSecrets,verifyAnySignature}=await import('./signature.js');
+  const raw=Buffer.from('{"object":"instagram","entry":[]}');
+  const signed=secret=>'sha256='+createHmac('sha256',secret).update(raw).digest('hex');
+  const secrets=webhookSecrets({META_APP_SECRET:'app-secret'+String.fromCharCode(10),INSTAGRAM_APP_SECRET:' ig-secret '});
+  assert.deepEqual(secrets,['app-secret','ig-secret']);
+  assert.equal(verifyAnySignature(raw,signed('app-secret'),secrets),true);
+  assert.equal(verifyAnySignature(raw,signed('ig-secret'),secrets),true);
+  assert.equal(verifyAnySignature(raw,signed('outro'),secrets),false);
+  assert.deepEqual(webhookSecrets({}),[]);
+});

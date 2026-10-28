@@ -30,3 +30,13 @@ export function verifySignature(raw,signature,secret){
   const expected=createHmac('sha256',secret).update(raw).digest();
   return timingSafeEqual(expected,Buffer.from(signature.slice(7),'hex'));
 }
+
+// Apps Meta com Instagram Login têm dois segredos (App secret e Instagram app secret)
+// e a Meta assina com um deles conforme a configuração do webhook. Aceita qualquer um.
+export function webhookSecrets(env=process.env){
+  return [env.META_APP_SECRET,env.INSTAGRAM_APP_SECRET].map(value=>typeof value==='string'?value.trim():'').filter(Boolean);
+}
+
+export function verifyAnySignature(raw,signature,secrets){
+  return secrets.some(secret=>verifySignature(raw,signature,secret));
+}
