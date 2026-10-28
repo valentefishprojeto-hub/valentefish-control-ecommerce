@@ -132,8 +132,11 @@ export async function processPayload(payload,options={}){
   const pending=[];
   // Persist the whole delivery before starting any LLM; ACK/waitUntil itself
   // is best-effort, not a durable queue (see operational limits in README).
+  const businessId=(options.env||process.env).IG_BUSINESS_ID;
   for(const entry of payload.entry||[]){
-    if(entry.id!== (options.env||process.env).IG_BUSINESS_ID) continue;
+    // Logs carry only counts and a yes/no, never message text or identifiers.
+    if(entry.id!==businessId){console.warn(`Instagram: evento ignorado; a conta do evento não corresponde a IG_BUSINESS_ID (configurado: ${businessId?'sim':'não'})`);continue;}
+    console.log(`Instagram: ${(entry.messaging||[]).length} evento(s) de mensagem recebido(s)`);
     for(const event of entry.messaging||[]){
       try{const persisted=await handle(event,{persistOnly:true});if(persisted) pending.push({event,persisted});}
       catch{console.error('Instagram: não foi possível persistir evento');}

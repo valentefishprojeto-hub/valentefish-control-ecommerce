@@ -16,9 +16,9 @@ export function createWebhook({env=process.env,waitUntil:background=waitUntil,pr
     let payload;
     try{
       const raw=await readRawBody(req);
-      if(!verifySignature(raw,req.headers['x-hub-signature-256'],env.META_APP_SECRET)) return res.status(401).json({error:'Assinatura inválida'});
+      if(!verifySignature(raw,req.headers['x-hub-signature-256'],env.META_APP_SECRET)){console.warn('Instagram: webhook recusado; assinatura não confere com META_APP_SECRET');return res.status(401).json({error:'Assinatura inválida'});}
       payload=JSON.parse(raw.toString('utf8'));
-      if(payload?.object!=='instagram'||!Array.isArray(payload.entry)) return res.status(400).json({error:'Evento inválido'});
+      if(payload?.object!=='instagram'||!Array.isArray(payload.entry)){console.warn(`Instagram: webhook com objeto inesperado (${typeof payload?.object==='string'?payload.object.slice(0,20):'ausente'})`);return res.status(400).json({error:'Evento inválido'});}
     }catch(error){
       // Do not log provider payloads or secrets through fail().
       return fail(res,new Error(error.status===413?'Evento muito grande':'Não foi possível ler os bytes crus do evento'),error.status||400);
