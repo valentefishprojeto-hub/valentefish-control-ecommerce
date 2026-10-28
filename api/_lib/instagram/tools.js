@@ -39,6 +39,22 @@ export function createTools({sql=db(),conversation,env=process.env,fetch:request
       return row?product(row,true):null;
     },
     async listar_categorias(){return (await sql`select name,slug from public.categories where active=true order by sort_order,name`).map(x=>({nome:x.name,link:trackedLink(`/c/${encodeURIComponent(x.slug)}`)}));},
+    // Pronta entrega: só produtos ativos com estoque, destaques primeiro.
+    async produtos_por_categoria({categoria,limite=3}={}){
+      if(typeof categoria!=='string'||!/^[a-z0-9-]{1,40}$/.test(categoria)) return [];
+      const n=Math.min(5,Math.max(1,Math.trunc(Number(limite))||3));
+      const rows=await sql`select p.slug,p.name,p.description,p.category,p.price_cents,p.stock_quantity,p.active,p.badge,c.name as category_name
+        from public.products p left join public.categories c on c.id=p.category_id
+        where p.active=true and p.stock_quantity>0 and coalesce(c.slug,p.category)=${categoria}
+        order by p.featured desc,p.featured_rank,p.name limit ${n}`;
+      return rows.map(row=>product(row));
+    },
+    async categorias_com_estoque(){
+      return (await sql`select c.slug,c.name,count(p.id)::int as total from public.categories c
+        join public.products p on coalesce(p.category_id,(select id from public.categories where slug=p.category))=c.id and p.active=true and p.stock_quantity>0
+        where c.active=true group by c.slug,c.name,c.sort_order order by c.sort_order,c.name`)
+        .map(x=>({slug:x.slug,nome:x.name,total:x.total,link:trackedLink(`/c/${encodeURIComponent(x.slug)}`)}));
+    },
     cotar_frete:args=>quoteShipping(args,{sql,env,fetch:request,signal}),
     async consultar_pedido({numero,email}={}){
       // Atomic counter: even simultaneous calls cannot pass the hourly limit.

@@ -4,7 +4,7 @@ import {db} from '../db.js';
 import {createGraph} from './graph.js';
 import {createTools,pauseHours} from './tools.js';
 import {runAgent,directAction} from './agent.js';
-import {catalogReply} from './catalogReply.js';
+import {conversationReply} from './conversationReply.js';
 import {splitText} from './text.js';
 import {storyReply,smallTalk} from './conversation.js';
 
@@ -89,14 +89,21 @@ export function createHandler({sql,env=process.env,graph=createGraph({env}),agen
       }else if(action?.text){result=action;}
       else if(message.reply_to?.story){result={text:storyReply(text)};}
       else if(!text||attachments.length){result={text:'Ainda não consigo avaliar esse conteúdo. Pode enviar sua dúvida por texto?'};}
+      else if(agent===runAgent&&(!env.ANTHROPIC_API_KEY||!env.ANTHROPIC_MODEL)){
+        // Sem IA: motor de intenções com memória da última pergunta do bot (válida por 30 min).
+        const [last]=await sql`select tool_calls,created_at from public.ig_messages where conversation_id=${conversation.id} and author='bot' and direction='out' order by created_at desc limit 1`;
+        const marker=Array.isArray(last?.tool_calls)?last.tool_calls.find(x=>typeof x?.name==='string'&&x.name.startsWith('estado:')):null;
+        const state=marker&&Date.now()-new Date(last.created_at).getTime()<30*60*1000?marker.name.slice(7):null;
+        const reply=await conversationReply(text,{tools,state,firstContact:!last});
+        result={...reply,toolCalls:reply.state?[{name:'estado:'+reply.state}]:[]};
+      }
       else if(smallTalk(text)){result={text:smallTalk(text)};}
-      else if(agent===runAgent&&(!env.ANTHROPIC_API_KEY||!env.ANTHROPIC_MODEL)){result=await catalogReply(text,tools);}
       else{
         const history=await sql`select author,text from public.ig_messages where conversation_id=${conversation.id} and id<>${messageId} order by created_at desc limit 12`;
         result=await agent({text,history:history.reverse(),tools,env});
       }
       const [previous]=await sql`select id from public.ig_messages where conversation_id=${conversation.id} and author='bot' limit 1`;
-      if(!previous) result.text='Olá, sou o assistente virtual da Valente Fish! '+result.text;
+      if(!previous&&!result.intro) result.text='Olá, sou o assistente virtual da Valente Fish! '+result.text;
       let parts;
       try{parts=splitText(result.text);}catch{
         const handoff=await tools.encaminhar_humano({motivo:'resposta_extensa',resumo:'A consulta precisa de atendimento humano.'});
