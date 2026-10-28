@@ -28,5 +28,5 @@ export async function catalogReply(text,tools){
   }
   const best=[...found.values()].sort((a,b)=>b.hits-a.hits).slice(0,3).map(({item})=>item);
   const lines=best.map(item=>`• ${item.nome}: ${item.preco} (${item.disponibilidade})\n${item.link}`);
-  return {text:(best.length===1?'Encontrei:\n':'Encontrei estas opções:\n')+lines.join('\n')};
+  return {text:(best.length===1?'Encontrei:\n':'Encontrei estas opções:\n')+lines.join('\n'),items:best};
 }

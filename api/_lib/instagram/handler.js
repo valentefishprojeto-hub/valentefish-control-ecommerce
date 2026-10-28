@@ -6,6 +6,7 @@ import {createTools,pauseHours} from './tools.js';
 import {runAgent,directAction} from './agent.js';
 import {conversationReply} from './conversationReply.js';
 import {splitText} from './text.js';
+import {infoLoja} from './knowledge.js';
 import {storyReply,smallTalk} from './conversation.js';
 
 const active=conversation=>conversation.status==='bot'||conversation.status==='human'&&conversation.paused_until&&new Date(conversation.paused_until)<=new Date();
@@ -15,6 +16,27 @@ const inWindow=conversation=>{
 };
 
 export function createHandler({sql,env=process.env,graph=createGraph({env}),agent=runAgent}={}){
+  // Pausa pedida ao bot (atendente, saúde...): avisa o cliente uma única vez enquanto ninguém da equipe respondeu.
+  async function pausedNotice(conversation){
+    if(conversation.status!=='human'||!conversation.handoff_reason||conversation.handoff_reason==='humano_no_instagram'||conversation.handoff_reason.startsWith('echo:')) return;
+    const [handoff]=await sql`select created_at from public.ig_handoffs where conversation_id=${conversation.id} and resolved_at is null`;
+    if(!handoff) return;
+    const text=`Um atendente da nossa equipe já foi chamado e vai continuar por aqui em breve 🙏 Se preferir agilizar, fale no WhatsApp: ${infoLoja('contato_whatsapp')}`;
+    const pendingMid='pending:'+randomUUID();
+    const [pending]=await sql`insert into public.ig_messages(conversation_id,mid,direction,author,text,tool_calls)
+      select ${conversation.id},${pendingMid},'out','bot',${text},${sql.json([{name:'aviso:pausa'}])}
+      where not exists (select 1 from public.ig_messages where conversation_id=${conversation.id} and created_at>=${handoff.created_at}
+        and (author='human' or tool_calls @> ${sql.json([{name:'aviso:pausa'}])}::jsonb))
+      returning id`;
+    if(!pending) return;
+    try{
+      const sent=await graph.sendText(conversation.igsid,text);
+      await sql`update public.ig_messages set mid=${sent.message_id} where id=${pending.id}`;
+    }catch{
+      await sql`update public.ig_messages set mid=${'failed:'+randomUUID()},text=null where id=${pending.id}`;
+      console.error('Instagram: não foi possível enviar o aviso de pausa');
+    }
+  }
   return async function handle(event,{persistOnly=false,persisted:preloaded}={}){
     sql ||= db();
     const message=event?.message;
@@ -73,7 +95,8 @@ export function createHandler({sql,env=process.env,graph=createGraph({env}),agen
     if(persistOnly) return persisted;
     if(!persisted||echo||env.IG_BOT_ENABLED!=='true') return;
     const {conversation,messageId}=persisted;
-    if(!active(conversation)||!inWindow(conversation)) return;
+    if(!inWindow(conversation)) return;
+    if(!active(conversation)) return pausedNotice(conversation);
     // Expiry reopens timed handoffs; closed conversations need explicit resumption.
     if(conversation.status==='human'){
       await sql`update public.ig_conversations set status='bot',paused_until=null,handoff_reason=null where id=${conversation.id} and paused_until<=now()`;
@@ -91,11 +114,17 @@ export function createHandler({sql,env=process.env,graph=createGraph({env}),agen
       else if(!text||attachments.length){result={text:'Ainda não consigo avaliar esse conteúdo. Pode enviar sua dúvida por texto?'};}
       else if(agent===runAgent&&(!env.ANTHROPIC_API_KEY||!env.ANTHROPIC_MODEL)){
         // Sem IA: motor de intenções com memória da última pergunta do bot (válida por 30 min).
-        const [last]=await sql`select tool_calls,created_at from public.ig_messages where conversation_id=${conversation.id} and author='bot' and direction='out' order by created_at desc limit 1`;
-        const marker=Array.isArray(last?.tool_calls)?last.tool_calls.find(x=>typeof x?.name==='string'&&x.name.startsWith('estado:')):null;
-        const state=marker&&Date.now()-new Date(last.created_at).getTime()<30*60*1000?marker.name.slice(7):null;
-        const reply=await conversationReply(text,{tools,state,firstContact:!last});
-        result={...reply,toolCalls:reply.state?[{name:'estado:'+reply.state}]:[]};
+        // Memória da conversa: última pergunta (30 min) e contexto de categoria/produtos (2 h), guardados na mensagem do bot.
+        const [last]=await sql`select tool_calls,created_at from public.ig_messages where conversation_id=${conversation.id} and author='bot' and direction='out' and coalesce(tool_calls,'[]'::jsonb) <> '[{"name":"aviso:pausa"}]'::jsonb order by created_at desc limit 1`;
+        const markers=Array.isArray(last?.tool_calls)?last.tool_calls:[];
+        const age=last?Date.now()-new Date(last.created_at).getTime():Infinity;
+        const marker=markers.find(x=>typeof x?.name==='string'&&x.name.startsWith('estado:'));
+        const saved=markers.find(x=>x?.name==='contexto');
+        const state=marker&&age<30*60*1000?marker.name.slice(7):null;
+        const context=saved&&age<2*3600*1000?{categoria:saved.categoria||null,produtos:Array.isArray(saved.produtos)?saved.produtos.slice(0,5):[],inicio:Number(saved.inicio)||0}:null;
+        const reply=await conversationReply(text,{tools,state,context,firstContact:!last});
+        const memory=reply.context?{name:'contexto',categoria:reply.context.categoria||null,produtos:(reply.context.produtos||[]).slice(0,5).map(x=>({slug:String(x.slug).slice(0,200),nome:String(x.nome).slice(0,120)})),inicio:reply.context.inicio||0}:null;
+        result={...reply,toolCalls:[...(reply.state?[{name:'estado:'+reply.state}]:[]),...(memory?[memory]:[])]};
       }
       else if(smallTalk(text)){result={text:smallTalk(text)};}
       else{

@@ -33,7 +33,38 @@ const NO=/^(nao|n|nada)?( ?(so isso|e so isso|era so isso|obrigad[oa]|por enquan
 // Palavras genéricas que não identificam um produto específico.
 const GENERIC=new Set(('pronta entrega pronto disponivel disponiveis estoque itens item produtos opcoes catalogo lista novidade novidades '+
   'manda mande mostra mostre envia envie listar quero ver tem teria tens vende vendem algum alguns alguma algumas mais outros outras '+
-  'tipos tipo chegou chegaram').split(' '));
+  'tipos tipo chegou chegaram primeiro primeira segundo segunda terceiro terceira quarto quarta quinto quinta ultimo ultima '+
+  'esse essa este esta ele ela desse dessa deste desta dele dela opcao numero foto fotos link comprar reservar levar outro '+
+  'proximo proximos detalhes detalhe info informacoes sobre gostei gostou fala conta').split(' '));
+
+// Memória da conversa: categoria e produtos mostrados por último, para "tem outros?", "o segundo", "quero esse".
+const MORE=/\b(mais|outros|outras|outro|outra|proximos|proximas|seguintes)\b/;
+const BUY=/\b(quero|queria|comprar|compro|vou levar|levo|reservar|reserva|separa|fechar|fecho|garantir)\b/;
+const PRONOUN=/\b(esse|essa|este|esta|ele|ela|desse|dessa|deste|desta|dele|dela|isso)\b/;
+const ORDINALS=[[/\b(primeir[oa]|1o|1º|1a|opcao 1|numero 1)\b/,0],[/\b(segund[oa]|2o|2º|2a|opcao 2|numero 2|o 2|a 2)\b/,1],[/\b(terceir[oa]|3o|3º|3a|opcao 3|numero 3|o 3|a 3)\b/,2],
+  [/\b(quart[oa]|4o|4º|opcao 4|numero 4|o 4|a 4)\b/,3],[/\b(quint[oa]|5o|5º|opcao 5|numero 5|o 5|a 5)\b/,4]];
+
+function referencedProduct(value,products){
+  if(!products?.length) return null;
+  if(/\bultim[oa]\b/.test(value)) return products.at(-1);
+  const ordinal=ORDINALS.find(([pattern])=>pattern.test(value));
+  if(ordinal) return products[ordinal[1]]||null;
+  if(products.length===1&&(PRONOUN.test(value)||BUY.test(value)||PRICE.test(value)||/\b(foto|fotos|link|detalhes?|info|informacoes|tamanho|disponivel)\b/.test(value))) return products[0];
+  return null;
+}
+
+async function productDetails(tools,ref,value){
+  const item=await tools.detalhes_produto({slug:ref.slug});
+  if(!item) return {text:`Não encontrei mais o ${ref.nome} no catálogo. Quer ver outras opções a pronta entrega?`,state:'aguardando_interesse',context:{produtos:[]}};
+  if(item.disponibilidade==='não disponível no momento'){
+    return {text:`O ${item.nome} acabou de sair do estoque 😕 Posso te avisar de outras opções, ou você faz um orçamento: ${item.orcamento||infoLoja('orcamento')}`,state:'aguardando_interesse',context:{produtos:[ref]}};
+  }
+  if(BUY.test(value)&&!PRICE.test(value)){
+    return {text:`Ótima escolha! 🐠 Para comprar o ${item.nome} (${item.preco}), é só abrir o link e adicionar ao carrinho:\n${item.link}\nO pagamento é pelo site (Pix, cartão ou boleto). Se precisar de ajuda, é só chamar.`,state:null,context:{produtos:[ref]}};
+  }
+  const description=item.descricao?`\n${String(item.descricao).slice(0,220)}`:'';
+  return {text:`${item.nome}: ${item.preco} (${item.disponibilidade})${description}\n${item.link}\nQuer comprar ou ver outras opções?`,state:'mostrou_produto',context:{produtos:[ref]}};
+}
 
 function greetingFor(now=new Date()){
   const hour=Number(new Intl.DateTimeFormat('pt-BR',{hour:'numeric',hour12:false,timeZone:'America/Sao_Paulo'}).format(now));
@@ -58,17 +89,22 @@ function specificTerms(text){
   return keywords(text).filter(word=>!GENERIC.has(word)&&!CATEGORY_NOUN.test(word)&&!/^\d+$/.test(word)&&!Object.hasOwn(NUMBER_WORDS,word));
 }
 
-async function listCategory(tools,slug,quantity){
+async function listCategory(tools,slug,quantity,offset=0){
   const limit=Math.min(5,Math.max(1,quantity||3));
-  const items=await tools.produtos_por_categoria({categoria:slug,limite:limit});
+  const items=await tools.produtos_por_categoria({categoria:slug,limite:limit,inicio:offset});
   const all=trackedLink(`/c/${encodeURIComponent(slug)}`);
   const name=(await tools.categorias_com_estoque()).find(x=>x.slug===slug)?.nome||slug;
-  if(!items.length){
-    return {text:`No momento não temos ${name.toLowerCase()} a pronta entrega 😕 Você pode acompanhar as novidades aqui: ${all}\nSe procura algo específico, faça seu orçamento: ${infoLoja('orcamento')}`,state:'aguardando_interesse'};
+  if(!items.length&&offset){
+    return {text:`Esses são todos os ${name.toLowerCase()} a pronta entrega no momento. Veja a página completa: ${all}\nQuer ver outra categoria?`,state:'aguardando_interesse',context:{categoria:slug,produtos:[],inicio:offset}};
   }
-  const lines=items.map(item=>`• ${item.nome}: ${item.preco}${item.disponibilidade==='últimas unidades'?' (últimas unidades)':''}\n${item.link}`);
-  const shortfall=quantity&&items.length<quantity?`\nNo momento temos ${items.length} ${items.length===1?'opção':'opções'} a pronta entrega.`:'';
-  return {text:`${name} a pronta entrega:\n${lines.join('\n')}${shortfall}\nVer todos: ${all}\nQuer saber mais sobre algum deles?`,state:'mostrou_categoria'};
+  if(!items.length){
+    return {text:`No momento não temos ${name.toLowerCase()} a pronta entrega 😕 Você pode acompanhar as novidades aqui: ${all}\nSe procura algo específico, faça seu orçamento: ${infoLoja('orcamento')}`,state:'aguardando_interesse',context:{categoria:slug,produtos:[],inicio:0}};
+  }
+  const lines=items.map((item,index)=>`${index+1}. ${item.nome}: ${item.preco}${item.disponibilidade==='últimas unidades'?' (últimas unidades)':''}\n${item.link}`);
+  const shortfall=quantity&&items.length<quantity?`\nNo momento ${offset?'restam':'temos'} ${items.length} ${items.length===1?'opção':'opções'} a pronta entrega.`:'';
+  const title=offset?`Mais ${name.toLowerCase()} a pronta entrega:`:`${name} a pronta entrega:`;
+  return {text:`${title}\n${lines.join('\n')}${shortfall}\nVer todos: ${all}\nQuer saber mais sobre algum deles? É só dizer o número.`,state:'mostrou_categoria',
+    context:{categoria:slug,produtos:items.map(item=>({slug:item.slug,nome:item.nome})),inicio:offset+items.length}};
 }
 
 async function stockMenu(tools){
@@ -95,8 +131,9 @@ async function orderLookup(text,tools){
   return {text:`Seu pedido está: ${result.status}. Pagamento: ${result.payment_status}.${tracking}`,state:null};
 }
 
-// state: última pergunta do bot nesta conversa (ou null). firstContact: primeira resposta do bot.
-export async function conversationReply(text,{tools,state=null,firstContact=false,now=new Date()}={}){
+// state: última pergunta do bot (ou null). context: categoria/produtos mostrados por último.
+// firstContact: primeira resposta do bot nesta conversa.
+export async function conversationReply(text,{tools,state=null,context=null,firstContact=false,now=new Date()}={}){
   const value=normalize(text).trim().replace(/\s+/g,' ');
   let rest=value;
   let opening='';
@@ -110,7 +147,8 @@ export async function conversationReply(text,{tools,state=null,firstContact=fals
       ?`${greetingFor(now)}! 👋 Sou o assistente virtual da Valente Fish.${asked?' Tudo ótimo por aqui, obrigado por perguntar!':''}`
       :asked?'Tudo ótimo por aqui, obrigado por perguntar!':'Oi de novo! 😊';
   }
-  const withOpening=result=>({...result,text:opening?`${opening} ${result.text}`:result.text,intro:firstContact&&Boolean(opening)});
+  // Respostas que não mexem no assunto (frete, pagamento...) preservam a memória anterior.
+  const withOpening=result=>({...result,text:opening?`${opening} ${result.text}`:result.text,intro:firstContact&&Boolean(opening),context:result.context??context});
 
   // Só saudação, sem pedido junto.
   if(!rest||/^[\s?!.,]*$/.test(rest)){
@@ -124,6 +162,9 @@ export async function conversationReply(text,{tools,state=null,firstContact=fals
   if(bare&&NO.test(bare)&&state){
     return withOpening({text:'Combinado! Quando precisar, é só chamar 🐠',state:null});
   }
+  if(state==='mostrou_produto'&&context?.produtos?.length===1&&/^(sim|quero|quero sim|sim quero|bora|claro|pode ser|manda)$/.test(bare)){
+    return withOpening(await productDetails(tools,context.produtos[0],'quero'));
+  }
   if(ACK.test(bare)){
     return withOpening({text:state==='mostrou_categoria'?'Fechado! Quer ver outra categoria ou o preço de algum produto?':'Fechado! Posso ajudar com mais alguma coisa?',state:'aguardando_interesse'});
   }
@@ -134,6 +175,15 @@ export async function conversationReply(text,{tools,state=null,firstContact=fals
   const category=detectCategory(rest);
   const quantity=detectQuantity(rest);
   const specific=specificTerms(rest);
+
+  // Referência ao que foi mostrado antes: "o segundo", "quero esse", "quanto custa?", "tem outros?", "manda mais 2".
+  if(context?.categoria&&MORE.test(rest)&&(!category||category===context.categoria)&&!specific.length){
+    return withOpening(await listCategory(tools,context.categoria,quantity,context.inicio||0));
+  }
+  if(!category&&!specific.length){
+    const ref=referencedProduct(rest,context?.produtos);
+    if(ref) return withOpening(await productDetails(tools,ref,rest));
+  }
 
   // Perguntas de informação vencem a busca de produto, exceto quando o cliente pergunta preço de algo.
   const info=SHIPPING.test(rest)?{text:`Enviamos para todo o Brasil 🚚 O valor do frete aparece no carrinho ao informar seu CEP: ${trackedLink('/carrinho')}\nPara animais, a embalagem e o transporte são especiais, e nossa equipe confirma a logística com você.`,state:'aguardando_interesse'}
@@ -146,7 +196,11 @@ export async function conversationReply(text,{tools,state=null,firstContact=fals
   // Produto específico (ex.: "quanto custa o coral hammer?").
   if(specific.length&&(PRICE.test(rest)||!info)&&(PRICE.test(rest)||!STOCK.test(rest))){
     const found=await catalogReply(specific.join(' '),tools);
-    if(!/^Não encontrei/.test(found.text)) return withOpening({...found,text:`${found.text}\nQuer ver outras opções a pronta entrega?`,state:'aguardando_interesse'});
+    if(!/^Não encontrei/.test(found.text)){
+      const produtos=(found.items||[]).map(item=>({slug:item.slug,nome:item.nome}));
+      return withOpening({text:`${found.text}\n${produtos.length===1?'Quer comprar ou ver outras opções?':'Quer saber mais sobre algum deles?'}`,
+        state:produtos.length===1?'mostrou_produto':'mostrou_categoria',context:{categoria:context?.categoria||null,produtos,inicio:context?.inicio||0}});
+    }
     // "Não encontrei" só quando o cliente procurava algo; texto sem sentido cai no menu de ajuda.
     if(!category&&!info&&!STOCK.test(rest)&&(PRICE.test(rest)||LIST_VERB.test(rest))) return withOpening({...found,state:'aguardando_interesse'});
   }

@@ -111,7 +111,8 @@ export async function runAgent({text,history=[],tools,env=process.env,fetch:requ
 
 export function directAction(text){
   const value=normalize(text);
-  if(/\b(atendente|humano|pessoa)\b/.test(value)) return {handoff:'solicitacao_cliente'};
+  // Pedido explícito de pessoa; "pessoa" sozinha ("aquário para 2 pessoas") não conta.
+  if(/\b(atendentes?|humanos?|humana|vendedor(a|es)?)\b|falar com (uma |um |a |o )?(pessoa|alguem|voces|vcs|equipe|dono|responsavel)|pessoa (de verdade|real)|alguem da (equipe|loja)|atendimento humano|nao (quero falar com|e) (um )?(bot|robo)/.test(value)) return {handoff:'solicitacao_cliente'};
   if(/pontos? brancos?|doente|morr|morte|dosagem|como (usar|aplicar|dosar).*tratamento|quanto.*(remedio|medicamento)|praga/.test(value)) return {handoff:'saude_animal',prefix:'Para tratamentos, siga as orientações do fabricante. Não consigo avaliar a saúde do animal por aqui. '};
   if(/chegou mal|reembolso|devolu|reclama|irritad|troca|garantia|compativ|montagem|aquario completo|compra.*volume/.test(value)) return {handoff:'especialista'};
   if(/ignore.*(instruc|regr)|desconto.*50|50%.*desconto|revele.*(prompt|instruc)/.test(value)) return {text:'Não posso alterar as regras da loja nem oferecer descontos. Posso ajudar você a consultar os produtos disponíveis?'};

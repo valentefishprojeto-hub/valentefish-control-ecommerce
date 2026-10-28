@@ -8,7 +8,7 @@ const statuses={pending_payment:'aguardando pagamento',pending:'pendente',author
 const statusLabel=value=>statuses[value]||'a confirmar com a equipe';
 function product(p,detail=false){
   const available=p.active&&p.stock_quantity>0;
-  return {nome:p.name,categoria:p.category_name||p.category,preco:formatPrice(p.price_cents),disponibilidade:!available?'não disponível no momento':p.stock_quantity<=2?'últimas unidades':'disponível',badge:p.badge,link:trackedLink(`/produto/${encodeURIComponent(p.slug)}`),
+  return {slug:p.slug,nome:p.name,categoria:p.category_name||p.category,preco:formatPrice(p.price_cents),disponibilidade:!available?'não disponível no momento':p.stock_quantity<=2?'últimas unidades':'disponível',badge:p.badge,link:trackedLink(`/produto/${encodeURIComponent(p.slug)}`),
     ...(!available?{orcamento:trackedLink('/orcamento'),orientacao:'Podemos consultar um especialista sobre disponibilidade.'}:{}),
     ...(detail?{descricao:p.description,...(p.compare_at_price_cents?{de:formatPrice(p.compare_at_price_cents),por:formatPrice(p.price_cents)}:{})}:{})};
 }
@@ -40,13 +40,14 @@ export function createTools({sql=db(),conversation,env=process.env,fetch:request
     },
     async listar_categorias(){return (await sql`select name,slug from public.categories where active=true order by sort_order,name`).map(x=>({nome:x.name,link:trackedLink(`/c/${encodeURIComponent(x.slug)}`)}));},
     // Pronta entrega: só produtos ativos com estoque, destaques primeiro.
-    async produtos_por_categoria({categoria,limite=3}={}){
+    async produtos_por_categoria({categoria,limite=3,inicio=0}={}){
       if(typeof categoria!=='string'||!/^[a-z0-9-]{1,40}$/.test(categoria)) return [];
       const n=Math.min(5,Math.max(1,Math.trunc(Number(limite))||3));
+      const skip=Math.min(500,Math.max(0,Math.trunc(Number(inicio))||0));
       const rows=await sql`select p.slug,p.name,p.description,p.category,p.price_cents,p.stock_quantity,p.active,p.badge,c.name as category_name
         from public.products p left join public.categories c on c.id=p.category_id
         where p.active=true and p.stock_quantity>0 and coalesce(c.slug,p.category)=${categoria}
-        order by p.featured desc,p.featured_rank,p.name limit ${n}`;
+        order by p.featured desc,p.featured_rank,p.name,p.slug limit ${n} offset ${skip}`;
       return rows.map(row=>product(row));
     },
     async categorias_com_estoque(){
