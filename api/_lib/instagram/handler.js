@@ -185,7 +185,12 @@ export async function processPayload(payload,options={}){
   const businessId=(options.env||process.env).IG_BUSINESS_ID;
   for(const entry of payload.entry||[]){
     // Logs carry only counts and a yes/no, never message text or identifiers.
-    if(entry.id!==businessId){console.warn(`Instagram: evento ignorado; a conta do evento não corresponde a IG_BUSINESS_ID (configurado: ${businessId?'sim':'não'})`);continue;}
+    if(entry.id!==businessId){
+      // Só os 4 últimos dígitos e o tamanho: basta para ver conta trocada ou espaço sobrando na variável.
+      const hint=v=>v?`…${String(v).slice(-4)} (${String(v).length} caracteres)`:'vazio';
+      console.warn(`Instagram: evento ignorado; conta do evento ${hint(entry.id)} ≠ IG_BUSINESS_ID ${hint(businessId)}`);
+      continue;
+    }
     console.log(`Instagram: ${(entry.messaging||[]).length} evento(s) de mensagem recebido(s)`);
     for(const event of entry.messaging||[]){
       try{const persisted=await handle(event,{persistOnly:true});if(persisted) pending.push({event,persisted});}
