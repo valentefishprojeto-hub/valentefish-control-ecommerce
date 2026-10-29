@@ -26,6 +26,7 @@ test('handler deduplica, pausa, respeita janela e kill switch e encaminha saúde
   assert.equal((await sql`select * from ig_messages where mid='five'`).length,1);
   env.IG_BOT_ENABLED='true';
   await handle(event('old','oi',{sender:{id:'antigo'},timestamp:Date.now()-25*3600000}));assert.equal(sent.length,3);
+  await handle(event('antes-da-ativacao','oi',{sender:{id:'antes'},timestamp:Date.now()-15*60000}));assert.equal(sent.length,3,'mensagem de antes da ativação não recebe resposta');
   await handle(event('photo','',{sender:{id:'foto'},message:{mid:'photo',attachments:[{type:'image',payload:{url:'https://private.test/secret'}}]}}));
   assert.match(sent[3].text,/especialista/);
   assert.equal(JSON.stringify(await sql`select attachments from ig_messages`).includes('private.test'),false);

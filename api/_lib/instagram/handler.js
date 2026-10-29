@@ -9,6 +9,7 @@ import {splitText} from './text.js';
 import {infoLoja} from './knowledge.js';
 import {storyReply,smallTalk} from './conversation.js';
 
+const STALE_MS=10*60*1000;
 const active=conversation=>conversation.status==='bot'||conversation.status==='human'&&conversation.paused_until&&new Date(conversation.paused_until)<=new Date();
 const inWindow=conversation=>{
   const time=new Date(conversation.last_customer_message_at).getTime();
@@ -47,6 +48,8 @@ export function createHandler({sql,env=process.env,graph=createGraph({env}),agen
     if(typeof igsid!=='string'||igsid.length>200||igsid===env.IG_BUSINESS_ID) return;
     const timestamp=Number(event.timestamp);
     if(!Number.isFinite(timestamp)||timestamp<=0||timestamp>Date.now()+300000) return;
+    // Mensagens enviadas antes da ativação (ou reentregues muito depois) não recebem resposta automática.
+    if(!echo&&timestamp<Date.now()-STALE_MS){console.warn('Instagram: mensagem antiga ignorada (enviada há mais de 10 minutos)');return;}
     if(echo){
       let previous=null;
       const echoReason='echo:'+message.mid;
