@@ -10,7 +10,7 @@ export async function runMaintenance({sql=db(),env=process.env,fetch:request=fet
     result.token={acao:token.action,vence_em:token.expiresAt?new Date(token.expiresAt).toISOString().slice(0,10):null};
   }catch(error){
     result.token={acao:'falhou',erro:String(error?.message||error).slice(0,160)};
-    console.error('Instagram: renovação do token falhou; gere um token novo se ele estiver perto de vencer');
+    console.error(`Instagram: renovação do token falhou (${result.token.erro}); gere um token novo se ele estiver perto de vencer`);
   }
   try{
     result.api=await checkApi({sql,env,fetch:request});

@@ -29,8 +29,15 @@ export async function cron(req,res){
 export async function maintenance(req,res){
   if(!method(req,res,['GET','POST'])) return;
   if(!cronAuthorized(req)) return res.status(401).json({error:'Agendador não autorizado'});
-  try{return res.status(200).json(await runMaintenance());}
-  catch{return res.status(503).json({error:'Não foi possível executar a manutenção'});}
+  try{
+    const result=await runMaintenance();
+    // Só estados e datas (nunca tokens), para o resultado aparecer nos logs da Vercel.
+    console.log('Instagram manutenção:',JSON.stringify(result));
+    return res.status(200).json(result);
+  }catch(error){
+    console.error('Instagram manutenção falhou:',String(error?.message||error).slice(0,160));
+    return res.status(503).json({error:'Não foi possível executar a manutenção'});
+  }
 }
 export function createMarketingHandler({sql:client,authenticate=currentUser,env=process.env,render=renderPublication}={}){return async function instagramMarketing(req,res){
   if(!method(req,res,['GET','POST'])) return;
