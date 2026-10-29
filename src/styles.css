@@ -321,6 +321,9 @@ body.cart-open .store-whatsapp{opacity:0;pointer-events:none}
 .brand-lockup img{display:block;width:auto!important;height:auto!important;max-width:none!important;background:transparent!important;border-radius:0;object-fit:contain}
 .store-logo-button{min-width:0}
 .store-logo-button .brand-lockup img{height:58px!important;width:auto!important}
+/* Logo horizontal (500×159): a coluna do cabeçalho acompanha a largura dele */
+.store-header{grid-template-columns:42px 186px minmax(240px,1fr) auto}
+@media(max-width:1000px){.store-header{grid-template-columns:40px 160px 1fr}.store-logo-button .brand-lockup img{height:50px!important}}
 .store-footer{background:#071018}
 .store-footer .brand-lockup img{width:168px!important}
 .intro-brand .brand-lockup{filter:drop-shadow(0 28px 35px #00152280)}
