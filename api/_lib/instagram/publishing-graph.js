@@ -1,12 +1,15 @@
 import {graphHost} from './graph.js';
+import {accessToken} from './token.js';
 
-export function publishingGraph({env=process.env,fetch:request=fetch}={}){
+export function publishingGraph({env=process.env,fetch:request=fetch,token:getToken=()=>accessToken(env)}={}){
   const root=()=>{
     if(!env.IG_ACCESS_TOKEN||!/^\d+$/.test(env.IG_BUSINESS_ID||'')||!/^v\d+\.\d+$/.test(env.META_GRAPH_VERSION||'')) throw new Error('Publicação no Instagram não configurada');
     return `https://${graphHost(env)}/${env.META_GRAPH_VERSION}`;
   };
   async function call(path,input){
-    const response=await request(root()+'/'+path,{method:input?'POST':'GET',headers:{authorization:`Bearer ${env.IG_ACCESS_TOKEN}`,...(input?{'content-type':'application/json'}:{})},...(input?{body:JSON.stringify(input)}:{}),signal:AbortSignal.timeout(12000)});
+    const base=root();
+    const token=await getToken()||env.IG_ACCESS_TOKEN;
+    const response=await request(base+'/'+path,{method:input?'POST':'GET',headers:{authorization:`Bearer ${token}`,...(input?{'content-type':'application/json'}:{})},...(input?{body:JSON.stringify(input)}:{}),signal:AbortSignal.timeout(12000)});
     if(!response.ok) throw new Error(`Instagram recusou a operação (HTTP ${response.status})`);
     return response.json();
   }

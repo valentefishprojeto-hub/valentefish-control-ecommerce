@@ -20,7 +20,7 @@ import quote from './_routes/shipping/quote.js';
 import tracking from './_routes/shipping/tracking.js';
 import mercadoPago from './_routes/webhooks/mercado-pago.js';
 import instagram from './_routes/webhooks/instagram.js';
-import instagramMarketing,{cron as instagramPublisher} from './_routes/marketing/instagram.js';
+import instagramMarketing,{cron as instagramPublisher,maintenance as instagramMaintenance} from './_routes/marketing/instagram.js';
 
 const routes={
   account,
@@ -34,6 +34,7 @@ const routes={
   'webhooks/instagram':instagram,
   'marketing/instagram':instagramMarketing,
   'marketing/instagram/run':instagramPublisher,
+  'instagram/maintenance':instagramMaintenance,
   'erp/categories':adminOnly(categories),
   'erp/commerce':adminOnly(commerce),
   'erp/customers':adminOnly(customers),

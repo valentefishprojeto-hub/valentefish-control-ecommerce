@@ -104,6 +104,7 @@ export function createHandler({sql,env=process.env,graph=createGraph({env}),agen
     }
     const tools=createTools({sql,conversation,env,signal:AbortSignal.timeout(20000)});
     let result;
+    let delivered=0;
     try{
       const action=directAction(text);
       if(action?.handoff||attachments.some(x=>x.type==='image')){
@@ -151,14 +152,27 @@ export function createHandler({sql,env=process.env,graph=createGraph({env}),agen
         try{
           const sent=await graph.sendText(igsid,part);
           await sql`update public.ig_messages set mid=${sent.message_id} where id=${pending.id}`;
+          delivered++;
         }catch{
           await sql`update public.ig_messages set mid=${'failed:'+randomUUID()},text=null where id=${pending.id}`;
           throw new Error('Falha no envio');
         }
       }
     }catch{
-      await tools.encaminhar_humano({motivo:'falha_processamento',resumo:'Verificar conversa manualmente.'});
+      const handoff=await tools.encaminhar_humano({motivo:'falha_processamento',resumo:'Verificar conversa manualmente.'});
       console.error('Instagram: atendimento encaminhado após falha');
+      // O cliente nunca fica sem resposta: avisa uma vez que a equipe vai continuar.
+      if(!delivered&&handoff?.mensagem&&env.IG_BOT_ENABLED==='true'){
+        const pendingMid='pending:'+randomUUID();
+        const [pending]=await sql`insert into public.ig_messages(conversation_id,mid,direction,author,text,tool_calls)
+          values (${conversation.id},${pendingMid},'out','bot',${handoff.mensagem},${sql.json([{name:'aviso:falha'}])}) returning id`;
+        try{
+          const sent=await graph.sendText(igsid,handoff.mensagem);
+          await sql`update public.ig_messages set mid=${sent.message_id} where id=${pending.id}`;
+        }catch{
+          await sql`update public.ig_messages set mid=${'failed:'+randomUUID()},text=null where id=${pending.id}`;
+        }
+      }
     }
   };
 }

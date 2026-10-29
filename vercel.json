@@ -1,5 +1,9 @@
 {
-  "functions": {"api/index.js": {"maxDuration": 120}},
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 120
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
@@ -8,6 +12,12 @@
     {
       "source": "/(.*)",
       "destination": "/index.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/instagram/maintenance",
+      "schedule": "0 9 * * *"
     }
   ]
 }

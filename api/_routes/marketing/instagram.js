@@ -5,6 +5,7 @@ import {db} from '../../_lib/db.js';
 import {validateTemplate,validateSchedule,captionFor} from '../../../shared/instagram-publishing.js';
 import {allowedAsset,renderPublication} from '../../_lib/instagram/publishing-media.js';
 import {runPublishing} from '../../_lib/instagram/publishing.js';
+import {runMaintenance} from '../../_lib/instagram/maintenance.js';
 
 const uuid=value=>typeof value==='string'&&/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(value);
 export {isAdmin};
@@ -23,6 +24,13 @@ export async function cron(req,res){
   if(!cronAuthorized(req)) return res.status(401).json({error:'Agendador não autorizado'});
   try{return res.status(200).json(await runPublishing());}
   catch{return res.status(503).json({error:'Não foi possível executar o agendador'});}
+}
+// Chamada diária pela Vercel Cron (Authorization: Bearer CRON_SECRET).
+export async function maintenance(req,res){
+  if(!method(req,res,['GET','POST'])) return;
+  if(!cronAuthorized(req)) return res.status(401).json({error:'Agendador não autorizado'});
+  try{return res.status(200).json(await runMaintenance());}
+  catch{return res.status(503).json({error:'Não foi possível executar a manutenção'});}
 }
 export function createMarketingHandler({sql:client,authenticate=currentUser,env=process.env,render=renderPublication}={}){return async function instagramMarketing(req,res){
   if(!method(req,res,['GET','POST'])) return;

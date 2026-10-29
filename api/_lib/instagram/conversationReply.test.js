@@ -210,3 +210,16 @@ test('durante a pausa o cliente recebe um único aviso, e nenhum depois que a eq
   await handle(event('p4','oi Ana'));
   assert.equal(sent.length,count,'nada depois que a equipe assumiu');
 });
+
+test('erro inesperado: o cliente recebe aviso de que a equipe vai continuar',async t=>{
+  process.env.APP_URL='https://loja.test';
+  const {createHandler}=await import('./handler.js');
+  const database=await testDatabase();t.after(()=>database.close());const {sql}=database;
+  const sent=[];let calls=0;
+  const env={IG_BUSINESS_ID:'loja',IG_BOT_ENABLED:'true'};
+  const handle=createHandler({sql,env,graph:{sendText:async(_id,text)=>{calls++;if(calls===1) throw new Error('Meta fora do ar');sent.push(text);return {message_id:'bot-'+calls};}}});
+  await handle({sender:{id:'cliente'},recipient:{id:'loja'},timestamp:Date.now(),message:{mid:'e1',text:'oi'}});
+  assert.equal(sent.length,1);
+  assert.match(sent[0],/especialista da nossa equipe/);
+  assert.equal((await sql`select status from ig_conversations`)[0].status,'human');
+});

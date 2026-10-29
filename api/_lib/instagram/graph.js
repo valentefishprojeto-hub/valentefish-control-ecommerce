@@ -1,5 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {setTimeout as sleep} from 'node:timers/promises';
+import {accessToken} from './token.js';
 
 // Apps criados antes de 2026 usam Instagram Login (graph.instagram.com, /me).
 // Apps novos usam Unified Login: token de usuário do sistema em graph.facebook.com, endereçado pelo ID da conta.
@@ -14,7 +15,7 @@ export function messagesEndpoint(env=process.env){
   return `https://${host}/${env.META_GRAPH_VERSION}/${env.IG_BUSINESS_ID}/messages`;
 }
 
-export function createGraph({env=process.env,fetch:request=fetch,sleep:pause=sleep,log=console.log}={}){
+export function createGraph({env=process.env,fetch:request=fetch,sleep:pause=sleep,log=console.log,token:getToken=()=>accessToken(env)}={}){
   async function send(igsid,body){
     if(env.IG_DRY_RUN==='true'){
       // Only opt-in local simulation prints message text; never identifiers or credentials.
@@ -23,9 +24,10 @@ export function createGraph({env=process.env,fetch:request=fetch,sleep:pause=sle
     }
     if(!env.IG_ACCESS_TOKEN||!/^v\d+\.\d+$/.test(env.META_GRAPH_VERSION||'')) throw new Error('Instagram não configurado');
     const endpoint=messagesEndpoint(env);
+    const token=await getToken();
     for(let attempt=0;attempt<3;attempt++){
       const response=await request(endpoint,{
-        method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${env.IG_ACCESS_TOKEN}`},
+        method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${token||env.IG_ACCESS_TOKEN}`},
         body:JSON.stringify({recipient:{id:igsid},...body}),signal:AbortSignal.timeout(5000)
       });
       if(response.ok){const result=await response.json();if(body.message&&!result.message_id) throw new Error('Instagram não confirmou o envio');return result;}
