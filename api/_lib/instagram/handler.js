@@ -191,9 +191,16 @@ export async function processPayload(payload,options={}){
       console.warn(`Instagram: evento ignorado; conta do evento ${hint(entry.id)} ≠ IG_BUSINESS_ID ${hint(businessId)}`);
       continue;
     }
-    console.log(`Instagram: ${(entry.messaging||[]).length} evento(s) de mensagem recebido(s)`);
+    // Só os nomes dos campos (message, read, reaction…), para saber o que a Meta mandou sem expor conteúdo.
+    const kinds=(entry.messaging||[]).map(e=>Object.keys(e).filter(k=>!['sender','recipient','timestamp'].includes(k)).join('+')||'vazio');
+    const extra=Object.keys(entry).filter(k=>!['id','time','messaging'].includes(k));
+    console.log(`Instagram: ${(entry.messaging||[]).length} evento(s) de mensagem recebido(s) [${kinds.join(', ')}]${extra.length?` campos extras: ${extra.join(',')}`:''}`);
     for(const event of entry.messaging||[]){
-      try{const persisted=await handle(event,{persistOnly:true});if(persisted) pending.push({event,persisted});}
+      try{
+        const persisted=await handle(event,{persistOnly:true});
+        if(persisted) pending.push({event,persisted});
+        else if(event?.message&&!event.message.is_echo) console.warn(`Instagram: mensagem não gravada (destinatário ${event.recipient?.id===businessId?'confere':'não confere'} com IG_BUSINESS_ID)`);
+      }
       catch{console.error('Instagram: não foi possível persistir evento');}
     }
   }
