@@ -109,7 +109,7 @@ function ProductForm({categories,initial,busy,onSubmit,notify}){
   return <form className="erp-form" onSubmit={event=>{event.preventDefault();onSubmit({...form,media,...(initial?{id:initial.id}:{})})}}>
     <div className="erp-form-grid">
       <Field label="Nome"><input name="name" value={form.name} onChange={update} required/></Field>
-      <Field label="SKU"><input name="sku" value={form.sku} onChange={update} placeholder="VF-PEI-010"/></Field>
+      <Field label="SKU (opcional)"><input name="sku" value={form.sku} onChange={update} placeholder="Ex.: VF-PEI-010"/></Field>
       <Field label="Categoria"><select name="categoryId" value={form.categoryId} onChange={update} required>{categories.map(category=><option key={category.id} value={category.id}>{category.name}</option>)}</select></Field>
       <Field label="Preço"><input name="price" value={form.price} onChange={update} placeholder="289,00" required/></Field>
       <Field label="Estoque inicial"><input name="stockQuantity" type="number" min="0" value={form.stockQuantity} onChange={update}/></Field>
@@ -225,6 +225,16 @@ export function ErpApp({notify}){
     setPage(next);setSearch('');setFilter('todos');setModal(null);setEditing(null);
   };
 
+  // No celular as tabelas viram cartões: cada célula recebe o título da coluna para exibir como rótulo.
+  useEffect(()=>{
+    document.querySelectorAll('.erp-table').forEach(table=>{
+      const heads=[...table.querySelectorAll('thead th')].map(th=>th.textContent.trim());
+      table.querySelectorAll('tbody tr').forEach(row=>[...row.children].forEach((cell,i)=>{
+        if(heads[i]) cell.dataset.label=heads[i]; else delete cell.dataset.label;
+      }));
+    });
+  });
+
   useEffect(()=>{
     const onPop=()=>setPage(pageFromPath(window.location.pathname));
     window.addEventListener('popstate',onPop);
@@ -305,10 +315,6 @@ export function ErpApp({notify}){
       <footer><i/>ERP + e-commerce<small>Dados da loja física e da vitrine</small></footer>
     </aside>
     <main>
-      <nav className="erp-mobile-nav" aria-label="Seções do ERP">
-        <BrandLockup tone="light"/>
-        <div>{pages.map(([id,name,Icon])=><button key={id} type="button" className={page===id?'active':''} onClick={()=>go(id)}><Icon size={16}/>{name}</button>)}</div>
-      </nav>
       <header className="erp-topbar">
         <div><span className="eyebrow">{groups.find(([,items])=>items.some(([id])=>id===page))?.[0]}</span><h1>{current[1]}</h1><p>{current[3]}</p></div>
         <div className="erp-top-actions">

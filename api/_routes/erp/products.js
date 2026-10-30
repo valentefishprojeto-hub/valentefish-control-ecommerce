@@ -2,6 +2,9 @@ import {db} from '../../_lib/db.js';
 import {FEATURED_LIMIT,mapProduct,parseMoney,uniqueSlug} from '../../_lib/erp.js';
 import {body,fail,method} from '../../_lib/http.js';
 
+// SKU é opcional: vazio vira null, senão a coluna unique recusa o segundo produto sem SKU.
+const optionalSku=value=>String(value??'').trim()||null;
+
 async function loadCategory(sql,idOrSlug){
   if(!idOrSlug) return null;
   const value=String(idOrSlug);
@@ -48,7 +51,7 @@ export default async function handler(req,res){
           sku, slug, name, description, category, category_id, price_cents, image_url, media, badge,
           stock_quantity, featured, featured_rank, active
         ) values (
-          ${input.sku||null},
+          ${optionalSku(input.sku)},
           ${slug},
           ${String(input.name).trim()},
           ${input.description||''},
@@ -93,7 +96,7 @@ export default async function handler(req,res){
       :(input.imageUrl??input.image_url??current.image_url);
     await sql`
       update public.products
-      set sku=${input.sku??current.sku},
+      set sku=${input.sku===undefined?current.sku:optionalSku(input.sku)},
           slug=${slug},
           name=${String(input.name||current.name).trim()},
           description=${input.description??current.description},
