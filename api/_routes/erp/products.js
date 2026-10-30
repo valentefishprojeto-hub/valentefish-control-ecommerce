@@ -76,7 +76,11 @@ export default async function handler(req,res){
     if(!id) return res.status(422).json({error:'Produto não informado'});
 
     if(req.method==='DELETE'){
-      await sql`update public.products set active=false, featured=false where id=${id}`;
+      // Apaga de vez. Pedidos e vendas guardam nome/preço e ficam com product_id nulo;
+      // carrinhos e movimentos de estoque do produto saem junto (on delete cascade).
+      // Para só tirar da loja, use "Visível no e-commerce" na edição.
+      const [removed]=await sql`delete from public.products where id=${id} returning id`;
+      if(!removed) return res.status(404).json({error:'Produto não encontrado'});
       return res.status(200).json({ok:true});
     }
 

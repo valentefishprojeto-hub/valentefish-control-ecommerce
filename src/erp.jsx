@@ -348,7 +348,7 @@ export function ErpApp({notify}){
             <td>{formatPrice((item.priceCents||0)/100)}</td>
             <td><Status tone={item.stockQuantity<=2?'warn':'ok'}>{item.stockQuantity} un.</Status></td>
             <td><Status tone={item.featured?'info':item.active?'ok':'muted'}>{item.featured?'Destaque':item.active?'Categoria':'Oculto'}</Status></td>
-            <td className="erp-row-actions"><button type="button" className="erp-ghost" onClick={()=>{setEditing(item);setModal('produto')}}>Editar</button><button type="button" className="erp-danger" onClick={()=>run(()=>api('/api/erp/products',{method:'DELETE',body:{id:item.id}}),'Produto ocultado')}><Trash2 size={14}/></button></td>
+            <td className="erp-row-actions"><button type="button" className="erp-ghost" onClick={()=>{setEditing(item);setModal('produto')}}>Editar</button><button type="button" className="erp-danger" aria-label={`Apagar ${item.name}`} onClick={()=>{if(window.confirm(`Apagar definitivamente "${item.name}"?\n\nEle sai da loja e do ERP e não dá para desfazer. Pedidos e vendas antigos continuam no histórico.\n\nPara só esconder da loja, use "Editar" e desmarque "Visível no e-commerce".`))run(()=>api('/api/erp/products',{method:'DELETE',body:{id:item.id}}),'Produto apagado')}}><Trash2 size={14}/></button></td>
           </tr>)}</tbody>
         </table>
         {!visibleProducts.length&&<Empty title="Nenhum produto neste filtro" text="Ajuste a busca ou cadastre um item."/>}
