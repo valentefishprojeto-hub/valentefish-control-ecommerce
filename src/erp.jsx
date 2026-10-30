@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {createPortal} from 'react-dom';
-import {ArrowUpRight,AtSign,Boxes,Globe,ImagePlus,LayoutDashboard,Package,Plus,Search,ShoppingBag,Sparkles,Store,Trash2,Users,Wallet,X} from 'lucide-react';
+import {ArrowUpRight,AtSign,Boxes,Camera,Globe,ImagePlus,LayoutDashboard,Package,Plus,Search,ShoppingBag,Sparkles,Store,Trash2,Users,Wallet,X} from 'lucide-react';
 import {api,formatPrice} from './commerce';
 import {getSupabase} from './supabaseClient';
 import {BrandLockup} from './brand';
@@ -118,11 +118,19 @@ function ProductForm({categories,initial,busy,onSubmit,notify}){
     </div>
     <div className="erp-media">
       <div className="erp-media-head"><b>Imagens e vídeos</b><small>Pode enviar vários arquivos. A primeira imagem vira a capa da loja.</small></div>
-      <label className="erp-media-drop">
-        <ImagePlus size={22}/>
-        <span>{uploading?'Enviando...':'Clique para subir imagens ou vídeos'}</span>
-        <input type="file" accept="image/*,video/*" multiple hidden disabled={uploading||busy} onChange={addFiles}/>
-      </label>
+      <div className="erp-media-sources">
+        {/* capture abre a câmera traseira direto no celular; no computador cai no seletor de arquivos */}
+        <label className="erp-media-drop">
+          <Camera size={22}/>
+          <span>{uploading?'Enviando...':'Tirar foto'}</span>
+          <input type="file" accept="image/*" capture="environment" hidden disabled={uploading||busy} onChange={addFiles}/>
+        </label>
+        <label className="erp-media-drop">
+          <ImagePlus size={22}/>
+          <span>{uploading?'Enviando...':'Galeria ou arquivos'}</span>
+          <input type="file" accept="image/*,video/*" multiple hidden disabled={uploading||busy} onChange={addFiles}/>
+        </label>
+      </div>
       {media.length>0&&<ul className="erp-media-list">{media.map((item,index)=><li key={item.url}>
         {item.kind==='video'?<video src={item.url} muted playsInline/>:<img src={item.url} alt=""/>}
         <small>{item.kind==='video'?'Vídeo':'Imagem'}{index===0?' • capa':''}</small>
@@ -297,6 +305,10 @@ export function ErpApp({notify}){
       <footer><i/>ERP + e-commerce<small>Dados da loja física e da vitrine</small></footer>
     </aside>
     <main>
+      <nav className="erp-mobile-nav" aria-label="Seções do ERP">
+        <BrandLockup tone="light"/>
+        <div>{pages.map(([id,name,Icon])=><button key={id} type="button" className={page===id?'active':''} onClick={()=>go(id)}><Icon size={16}/>{name}</button>)}</div>
+      </nav>
       <header className="erp-topbar">
         <div><span className="eyebrow">{groups.find(([,items])=>items.some(([id])=>id===page))?.[0]}</span><h1>{current[1]}</h1><p>{current[3]}</p></div>
         <div className="erp-top-actions">
