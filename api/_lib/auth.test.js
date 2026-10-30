@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {adminOnly} from './auth.js';
+import {adminOnly,profileRole} from './auth.js';
 import router from '../index.js';
 
 function reply(){
@@ -33,6 +33,31 @@ test('rotas do ERP exigem login de administrador', async()=>{
   await adminOnly(handler,{authenticate:as({id:'u2'}),env:{IG_PUBLISH_ADMIN_IDS:'u1, u2'}})({headers:{}},res);
   assert.equal(res.statusCode,200);
   assert.equal(res.headers['Cache-Control'],'no-store');
+});
+
+test('profiles.role = admin libera o ERP; cliente não', async()=>{
+  let res=reply();
+  await adminOnly(handler,{authenticate:as({id:'u3'}),env:{},roleOf:async id=>id==='u3'?'admin':null})({headers:{}},res);
+  assert.equal(res.statusCode,200);
+  res=reply();
+  await adminOnly(handler,{authenticate:as({id:'u4'}),env:{},roleOf:async()=>'cliente'})({headers:{}},res);
+  assert.equal(res.statusCode,403);
+});
+
+test('migração: só a conta admin vira admin e cliente não consegue se promover', async t=>{
+  const {testDatabase}=await import('./instagram/test-db.js');
+  const {sql,pg,close}=await testDatabase();t.after(close);
+  const [admin]=await sql`insert into auth.users(id,email) values (gen_random_uuid(),'admin@valentefish.com') returning id`;
+  const [client]=await sql`insert into auth.users(id,email) values (gen_random_uuid(),'cliente@x.com') returning id`;
+  // reaplica o trecho final da migração agora que a conta existe
+  await sql`insert into public.profiles (id, role) select u.id, 'admin' from auth.users u where lower(u.email) = 'admin@valentefish.com' on conflict (id) do update set role = 'admin'`;
+  assert.equal(await profileRole(admin.id,{sql}),'admin');
+  assert.equal(await profileRole(client.id,{sql}),'cliente');
+  await pg.exec('set role authenticated');
+  await assert.rejects(pg.query(`update public.profiles set role='admin' where id='${client.id}'`),/permission denied/);
+  await assert.rejects(pg.query(`insert into public.profiles(id,role) values (gen_random_uuid(),'admin')`),/permission denied/);
+  await pg.exec('reset role');
+  assert.equal(await profileRole(client.id,{sql}),'cliente');
 });
 
 test('o roteador bloqueia /api/erp/* sem token antes de tocar no banco', async()=>{

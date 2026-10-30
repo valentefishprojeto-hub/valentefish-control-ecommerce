@@ -516,7 +516,7 @@ function Shop({notify}){
     const next=nextPath();
     sessionStorage.removeItem('vf-next');
     // Admin entra direto no painel (o ERP é outra aplicação, por isso recarrega a página).
-    if(user?.admin) return window.location.assign('/admin');
+    if(profile?.admin||user?.admin) return window.location.assign('/admin');
     navigateTo(next.startsWith('/')?next:'/conta');
   };
   const handleAuthSubmit=async form=>{

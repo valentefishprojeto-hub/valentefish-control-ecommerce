@@ -1,3 +1,5 @@
+import {db} from './db.js';
+
 function supabaseConfig(){
   const url=process.env.SUPABASE_URL||process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key=process.env.SUPABASE_PUBLISHABLE_KEY||process.env.SUPABASE_ANON_KEY||process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -27,7 +29,17 @@ export function isAdmin(user,env=process.env){
   return !!user&&(user.app_metadata?.role==='admin'||String(env.IG_PUBLISH_ADMIN_IDS||'').split(',').map(x=>x.trim()).filter(Boolean).includes(user.id));
 }
 
-export function adminOnly(handler,{authenticate=currentUser,env=process.env}={}){
+// public.profiles.role só muda por SQL/servidor (ver migração profiles_role); falha no banco nega o acesso.
+export async function profileRole(userId,{sql}={}){
+  try{
+    const [row]=await (sql||db())`select role from public.profiles where id=${userId}`;
+    return row?.role||null;
+  }catch{
+    return null;
+  }
+}
+
+export function adminOnly(handler,{authenticate=currentUser,env=process.env,roleOf=profileRole}={}){
   return async function guarded(req,res){
     res.setHeader('Cache-Control','no-store');
     let user;
@@ -36,7 +48,7 @@ export function adminOnly(handler,{authenticate=currentUser,env=process.env}={})
     }catch(error){
       return res.status(error.status||500).json({error:error.status?error.message:'Não foi possível validar o acesso'});
     }
-    if(!isAdmin(user,env)) return res.status(403).json({error:'Esta área está disponível apenas para administradores autorizados'});
+    if(!isAdmin(user,env)&&await roleOf(user.id)!=='admin') return res.status(403).json({error:'Esta área está disponível apenas para administradores autorizados'});
     req.user=user;
     return handler(req,res);
   };

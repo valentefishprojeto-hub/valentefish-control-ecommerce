@@ -98,10 +98,11 @@ export async function loadProfile(){
   const supabase=getSupabase();
   const {data:auth}=await supabase.auth.getUser();
   if(!auth.user) return null;
-  const {data}=await supabase.from('profiles').select('full_name,phone,avatar_url').eq('id',auth.user.id).maybeSingle();
+  const {data}=await supabase.from('profiles').select('full_name,phone,avatar_url,role').eq('id',auth.user.id).maybeSingle();
   const session=mapUser(auth.user,(await supabase.auth.getSession()).data.session);
   return {
     ...session,
+    admin:session.admin||data?.role==='admin',
     name:data?.full_name||session.name,
     phone:data?.phone||session.phone,
     avatar:data?.avatar_url||session.avatar
