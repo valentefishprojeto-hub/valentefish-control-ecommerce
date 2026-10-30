@@ -285,7 +285,7 @@ function AuthPage({mode,busy,error,next,onSubmit,onGoogle,onSwitch}){
       <div className="auth-divider"><span>ou use e-mail</span></div>
       {creating&&<label>Nome<input name="name" value={form.name} onChange={update} required placeholder="Seu nome"/></label>}
       <label>E-mail<input name="email" type="email" value={form.email} onChange={update} required placeholder="voce@email.com"/></label>
-      {creating&&<label>Telefone / WhatsApp<input name="phone" type="tel" value={form.phone} onChange={update} required placeholder="(21) 99999-9999"/></label>}
+      {creating&&<label>Telefone / WhatsApp (opcional)<input name="phone" type="tel" value={form.phone} onChange={update} placeholder="(21) 99999-9999"/></label>}
       <label>Senha<input name="password" type="password" value={form.password} onChange={update} required minLength={6} placeholder="Mínimo 6 caracteres"/></label>
       {error&&<small className="commerce-error">{error}</small>}
       <button type="submit" disabled={busy}>{busy?'Aguarde...':creating?'Criar conta':'Entrar e continuar'}</button>
