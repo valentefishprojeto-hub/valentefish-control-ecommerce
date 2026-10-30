@@ -313,7 +313,9 @@ body.cart-open .store-whatsapp{opacity:0;pointer-events:none}
 .erp-ai textarea{border:1px solid #d5e4e6;border-radius:10px;padding:10px 12px;background:#fff;width:100%;font:inherit;resize:vertical}
 .erp-ai>button{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:700}
 .erp-ai>button:disabled{opacity:.6;cursor:not-allowed}
-.erp-ai-result{margin:0;font-size:13px;border-radius:10px;padding:8px 10px;background:#e8f7ee;color:#1d6b3c}
+.erp-ai-result{margin:0;font-size:13px;border-radius:10px;padding:8px 10px;background:#e8f7ee;color:#1d6b3c;display:grid;gap:4px}
+.erp-ai-result p{margin:0}
+.erp-ai-result a{color:inherit;text-decoration:underline}
 .erp-ai-result.media{background:#fff6e0;color:#8a5a00}
 .erp-ai-result.baixa{background:#fdeceb;color:#9b2c25}
 .erp-commerce{display:grid;gap:16px}
