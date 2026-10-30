@@ -120,6 +120,18 @@ function citedUrls(response){
     .filter(a=>a.type==='url_citation'&&a.url).map(a=>a.url);
 }
 
+// Saída do modelo vira link no admin: só URLs http(s) que realmente fazem parse, com o domínio já calculado.
+export function safeSources(list){
+  const seen=new Map();
+  for(const value of list){
+    try{
+      const url=new URL(String(value));
+      if((url.protocol==='https:'||url.protocol==='http:')&&url.hostname&&!seen.has(url.href)) seen.set(url.href,{url:url.href,host:url.hostname.replace(/^www\./,'')});
+    }catch{}
+  }
+  return [...seen.values()].slice(0,8);
+}
+
 export async function draftProduct({images,notes='',sql,env=process.env,client,catalog}={}){
   const urls=(Array.isArray(images)?images:[]).filter(u=>typeof u==='string'&&/^https:\/\//.test(u)).slice(0,MAX_IMAGES);
   if(!urls.length) throw fail('Envie pelo menos uma foto do produto',422);
@@ -131,7 +143,7 @@ export async function draftProduct({images,notes='',sql,env=process.env,client,c
 
   const response=await openai.responses.create(buildRequest({images:urls,notes:String(notes).slice(0,1000),catalog:data,env}));
   const draft=parse(response);
-  const sources=[...new Set([...(draft.fontes||[]),...citedUrls(response)].filter(u=>/^https?:\/\//.test(u)))].slice(0,8);
+  const sources=safeSources([...(draft.fontes||[]),...citedUrls(response)]);
 
   let check=null;
   try{check=parse(await openai.responses.create(buildCheckRequest({images:urls,draft,env})));}

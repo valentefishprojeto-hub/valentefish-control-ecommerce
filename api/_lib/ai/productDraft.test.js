@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildRequest,buildCheckRequest,draftProduct,DEFAULT_MODEL} from './productDraft.js';
+import {buildRequest,buildCheckRequest,draftProduct,safeSources,DEFAULT_MODEL} from './productDraft.js';
 import {testDatabase} from '../instagram/test-db.js';
 
 const catalog={
@@ -19,7 +19,7 @@ test('rascunho: pesquisa na web, manda fotos + catálogo e confere numa segunda 
   const draft=await draftProduct({images:['https://x.supabase.co/a.jpg','http://inseguro/b.jpg','https://x.supabase.co/c.jpg'],notes:'chegou hoje',client,catalog});
   assert.deepEqual({name:draft.name,categoryId:draft.categoryId,confidence:draft.confidence,verified:draft.verified,identification:draft.identification},
     {name:'Tang Amarelo',categoryId:'c1',confidence:'alta',verified:true,identification:'Zebrasoma flavescens'});
-  assert.deepEqual(draft.sources,['https://www.fishbase.se/summary/6015','https://reeflifesurvey.com/x'],'fontes do modelo + citações da busca');
+  assert.deepEqual(draft.sources,[{url:'https://www.fishbase.se/summary/6015',host:'fishbase.se'},{url:'https://reeflifesurvey.com/x',host:'reeflifesurvey.com'}],'fontes do modelo + citações da busca');
   const [first,second]=client.calls;
   assert.deepEqual(first.tools,[{type:'web_search'}]);
   assert.deepEqual(first.input[0].content.filter(b=>b.type==='input_image').map(b=>b.image_url),['https://x.supabase.co/a.jpg','https://x.supabase.co/c.jpg'],'só URLs https');
@@ -45,6 +45,10 @@ test('rascunho: se a conferência falhar, segue com aviso e sem confiança alta'
   assert.equal(draft.confidence,'media');
   assert.equal(draft.verified,null);
   assert.match(draft.notes,/Não foi possível fazer a conferência/);
+});
+
+test('rascunho: fontes inválidas ou perigosas não viram link',()=>{
+  assert.deepEqual(safeSources(['javascript:alert(1)','https://','nada','data:text/html,x','https://ok.org/a','https://ok.org/a']),[{url:'https://ok.org/a',host:'ok.org'}]);
 });
 
 test('rascunho: modelo e persona vêm de variáveis próprias',()=>{

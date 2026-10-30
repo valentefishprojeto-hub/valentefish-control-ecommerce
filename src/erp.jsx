@@ -139,7 +139,7 @@ function ProductForm({categories,initial,busy,onSubmit,notify}){
         <p><b>{ai.result.identification||ai.result.name}</b> • confiança {ai.result.confidence==='media'?'média':ai.result.confidence} • {ai.result.verified===true?'conferência independente: compatível':ai.result.verified===false?'conferência independente: divergente':'sem conferência'}</p>
         {ai.result.notes&&<p>{ai.result.notes}</p>}
         {ai.result.observed&&<p><small>O que a IA viu na foto: {ai.result.observed}</small></p>}
-        {ai.result.sources?.length>0&&<p><small>Fontes: {ai.result.sources.map((url,i)=><React.Fragment key={url}>{i>0&&' · '}<a href={url} target="_blank" rel="noreferrer">{new URL(url).hostname.replace(/^www\./,'')}</a></React.Fragment>)}</small></p>}
+        {ai.result.sources?.length>0&&<p><small>Fontes: {ai.result.sources.filter(source=>/^https?:\/\//.test(source?.url||'')).map((source,i)=><React.Fragment key={source.url}>{i>0&&' · '}<a href={source.url} target="_blank" rel="noopener noreferrer">{source.host}</a></React.Fragment>)}</small></p>}
       </div>}
     </div>
     <div className="erp-checks">
