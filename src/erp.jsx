@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {createPortal} from 'react-dom';
-import {ArrowUpRight,AtSign,Boxes,Globe,ImagePlus,LayoutDashboard,Package,Plus,Search,ShoppingBag,Store,Trash2,Users,Wallet,X} from 'lucide-react';
+import {ArrowUpRight,AtSign,Boxes,Globe,ImagePlus,LayoutDashboard,Package,Plus,Search,ShoppingBag,Sparkles,Store,Trash2,Users,Wallet,X} from 'lucide-react';
 import {api,formatPrice} from './commerce';
 import {getSupabase} from './supabaseClient';
 import {BrandLockup} from './brand';
@@ -67,6 +67,20 @@ function ProductForm({categories,initial,busy,onSubmit,notify}){
   }));
   const [media,setMedia]=useState(()=>initial?.media?.length?initial.media:initial?.imageUrl?[{url:initial.imageUrl,kind:'image',name:'capa'}]:[]);
   const [uploading,setUploading]=useState(false);
+  const [ai,setAi]=useState({notes:'',busy:false,result:null});
+  const images=media.filter(item=>item.kind!=='video').map(item=>item.url);
+  const fillWithAi=async()=>{
+    setAi(current=>({...current,busy:true,result:null}));
+    try{
+      const {draft}=await api('/api/erp/ai-product',{method:'POST',body:{images,notes:ai.notes}});
+      setForm(current=>({...current,name:draft.name||current.name,description:draft.description||current.description,
+        badge:draft.badge||current.badge,categoryId:draft.categoryId||current.categoryId}));
+      setAi(current=>({...current,busy:false,result:draft}));
+    }catch(error){
+      setAi(current=>({...current,busy:false}));
+      notify(error.message||'A IA não conseguiu preencher agora');
+    }
+  };
   const update=event=>{
     const {name,type,checked,value}=event.target;
     setForm(current=>({...current,[name]:type==='checkbox'?checked:value}));
@@ -114,6 +128,16 @@ function ProductForm({categories,initial,busy,onSubmit,notify}){
         <small>{item.kind==='video'?'Vídeo':'Imagem'}{index===0?' • capa':''}</small>
         <button type="button" className="erp-danger" onClick={()=>setMedia(current=>current.filter((_,i)=>i!==index))} aria-label="Remover"><Trash2 size={14}/></button>
       </li>)}</ul>}
+    </div>
+    <div className="erp-ai">
+      <div className="erp-media-head"><b><Sparkles size={16}/> Preencher com IA</b><small>A IA olha as fotos e o catálogo atual e preenche nome, categoria, descrição e selo. Preço e estoque continuam com você. Revise antes de publicar.</small></div>
+      <textarea rows="2" value={ai.notes} onChange={event=>setAi(current=>({...current,notes:event.target.value}))} placeholder="Opcional: dicas para a IA (ex.: “tamanho M, veio de Bali”, “ração 120 g”)" maxLength={1000}/>
+      <button type="button" className="erp-ghost" disabled={!images.length||ai.busy||uploading||busy} onClick={fillWithAi}>
+        <Sparkles size={16}/> {ai.busy?'A IA está analisando as fotos…':images.length?'Preencher com IA':'Suba ao menos uma foto para usar a IA'}
+      </button>
+      {ai.result&&<p className={`erp-ai-result ${ai.result.confidence}`}>
+        Preenchido pela IA • confiança {ai.result.confidence==='media'?'média':ai.result.confidence}{ai.result.notes?` — ${ai.result.notes}`:''}
+      </p>}
     </div>
     <div className="erp-checks">
       <label><input name="featured" type="checkbox" checked={form.featured} onChange={update}/> Destaque na home (máx. {FEATURED_LIMIT})</label>

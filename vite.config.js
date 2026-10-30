@@ -12,6 +12,7 @@ const routes={
   '/api/erp/finance':'./api/_routes/erp/finance.js',
   '/api/erp/commerce':'./api/_routes/erp/commerce.js',
   '/api/erp/upload':'./api/_routes/erp/upload.js',
+  '/api/erp/ai-product':'./api/_routes/erp/ai-product.js',
   '/api/track':'./api/_routes/track.js',
   '/api/products':'./api/_routes/products.js',
   '/api/cart':'./api/_routes/cart.js',

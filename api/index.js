@@ -16,6 +16,7 @@ import erpProducts from './_routes/erp/products.js';
 import sales from './_routes/erp/sales.js';
 import stock from './_routes/erp/stock.js';
 import upload from './_routes/erp/upload.js';
+import aiProduct from './_routes/erp/ai-product.js';
 import quote from './_routes/shipping/quote.js';
 import tracking from './_routes/shipping/tracking.js';
 import mercadoPago from './_routes/webhooks/mercado-pago.js';
@@ -44,6 +45,7 @@ const routes={
   'erp/sales':adminOnly(sales),
   'erp/stock':adminOnly(stock),
   'erp/upload':adminOnly(upload),
+  'erp/ai-product':adminOnly(aiProduct),
   'shipping/quote':quote,
   'shipping/tracking':tracking,
   'webhooks/mercado-pago':mercadoPago

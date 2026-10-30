@@ -6,6 +6,7 @@
   "scripts": {
     "test:instagram": "node --test api/_lib/instagram/*.test.js",
     "test:auth": "node --test api/_lib/auth.test.js",
+    "test:ai": "node --test api/_lib/ai/*.test.js",
     "instagram:simulate": "node scripts/ig-simulate.mjs --offline",
     "instagram:check": "node scripts/ig-check-config.mjs",
     "instagram:test-posts": "node --test api/_lib/instagram/publishing.test.js api/_lib/instagram/publishing-graph.test.js",
@@ -18,6 +19,7 @@
     "@vercel/functions": "3.10.3",
     "@vitejs/plugin-react": "latest",
     "lucide-react": "latest",
+    "openai": "^6.49.0",
     "postgres": "^3.4.9",
     "react": "latest",
     "react-dom": "latest",
