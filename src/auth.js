@@ -10,6 +10,8 @@ export function mapUser(user,session){
     phone:metadata.phone||metadata.phone_number||user.phone||'',
     avatar:metadata.avatar_url||metadata.picture||'',
     provider:user.app_metadata?.provider||'email',
+    // Só para escolher a tela após o login; quem libera o ERP é o servidor (adminOnly).
+    admin:user.app_metadata?.role==='admin',
     accessToken:session?.access_token||null
   };
 }
