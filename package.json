@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test:instagram": "node --test api/_lib/instagram/*.test.js",
-    "test:auth": "node --test api/_lib/auth.test.js",
+    "test:auth": "node --test api/_lib/auth.test.js api/_lib/db.test.js",
     "test:ai": "node --test api/_lib/ai/*.test.js",
     "instagram:simulate": "node scripts/ig-simulate.mjs --offline",
     "instagram:check": "node scripts/ig-check-config.mjs",
