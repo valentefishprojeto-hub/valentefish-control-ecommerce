@@ -31,7 +31,10 @@ create trigger profiles_protect_role
 before insert or update on public.profiles
 for each row execute function private.protect_profile_role();
 
--- Conta de administração da loja.
+-- Conta de administração da loja. Só promove se o e-mail estiver confirmado: o domínio não é da loja,
+-- então uma conta criada por terceiros pelo cadastro público (sem confirmação) não vira admin.
+-- Confira depois que a conta promovida é a sua (created_at) com a consulta do passo de verificação.
 insert into public.profiles (id, role)
-select u.id, 'admin' from auth.users u where lower(u.email) = 'admin@valentefish.com'
+select u.id, 'admin' from auth.users u
+where lower(u.email) = 'admin@valentefish.com' and u.email_confirmed_at is not null
 on conflict (id) do update set role = 'admin';

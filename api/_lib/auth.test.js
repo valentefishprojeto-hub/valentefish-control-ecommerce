@@ -47,10 +47,10 @@ test('profiles.role = admin libera o ERP; cliente não', async()=>{
 test('migração: só a conta admin vira admin e cliente não consegue se promover', async t=>{
   const {testDatabase}=await import('./instagram/test-db.js');
   const {sql,pg,close}=await testDatabase();t.after(close);
-  const [admin]=await sql`insert into auth.users(id,email) values (gen_random_uuid(),'admin@valentefish.com') returning id`;
+  const [admin]=await sql`insert into auth.users(id,email,email_confirmed_at) values (gen_random_uuid(),'admin@valentefish.com',now()) returning id`;
   const [client]=await sql`insert into auth.users(id,email) values (gen_random_uuid(),'cliente@x.com') returning id`;
   // reaplica o trecho final da migração agora que a conta existe
-  await sql`insert into public.profiles (id, role) select u.id, 'admin' from auth.users u where lower(u.email) = 'admin@valentefish.com' on conflict (id) do update set role = 'admin'`;
+  await sql`insert into public.profiles (id, role) select u.id, 'admin' from auth.users u where lower(u.email) = 'admin@valentefish.com' and u.email_confirmed_at is not null on conflict (id) do update set role = 'admin'`;
   assert.equal(await profileRole(admin.id,{sql}),'admin');
   assert.equal(await profileRole(client.id,{sql}),'cliente');
   await pg.exec('set role authenticated');
