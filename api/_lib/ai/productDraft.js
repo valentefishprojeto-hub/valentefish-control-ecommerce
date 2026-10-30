@@ -3,7 +3,7 @@ import {db} from '../db.js';
 
 // Gera um rascunho de produto a partir das fotos, seguindo o estilo do catálogo atual.
 // Só preenche o formulário do admin: quem publica é a pessoa, depois de revisar.
-export const DEFAULT_MODEL='gpt-5-mini';
+export const DEFAULT_MODEL='gpt-4.1-mini';
 const MAX_IMAGES=5;
 const CATALOG_SAMPLE=40;
 
