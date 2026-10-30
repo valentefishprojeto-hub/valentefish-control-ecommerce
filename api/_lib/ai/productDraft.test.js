@@ -5,11 +5,12 @@ import {testDatabase} from '../instagram/test-db.js';
 
 const catalog={
   categories:[{id:'c1',slug:'peixes',name:'Peixes',description:''},{id:'c2',slug:'corais',name:'Corais',description:'Corais de recife'}],
-  products:[{name:'Peixe-palhaço Ocellaris',description:'Clássico do aquário marinho...',badge:'Quarentenado',categoria:'peixes'}]
+  products:[{name:'Peixe-palhaço Ocellaris',description:'Clássico do aquário marinho...',badge:'Quarentenado',categoria:'peixes'}],
+  names:[{name:'Coral Dendronephthya Rosa',categoria:'corais',resumo:'Dendronephthya sp., coral mole...'},{name:'Peixe-palhaço Ocellaris',categoria:'peixes',resumo:'Amphiprion ocellaris'}]
 };
 const reply=(json,extra={})=>({model:DEFAULT_MODEL,status:'completed',output_text:JSON.stringify(json),output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(json),annotations:extra.annotations||[]}]}],...extra});
 const draftJson=(over={})=>({caracteristicas_observadas:'corpo oval amarelo',candidatos_descartados:'Centropyge: boca diferente',identificacao:'Zebrasoma flavescens',
-  nome:'Tang Amarelo',categoria:'peixes',descricao:'Zebrasoma flavescens...',selo:'Quarentenado',confianca:'alta',observacoes:'',fontes:['https://www.fishbase.se/summary/6015'],...over});
+  nome:'Tang Amarelo',categoria:'peixes',descricao:'Zebrasoma flavescens...',selo:'Quarentenado',confianca:'alta',observacoes:'',fontes:['https://www.fishbase.se/summary/6015'],relacionados:[],...over});
 const ok={compativel:true,divergencias:'',alternativa:''};
 // Responde na ordem: 1ª chamada = rascunho, 2ª = conferência
 const fakeClient=(...responses)=>{const calls=[];return {calls,responses:{create:async params=>{calls.push(params);const r=responses[calls.length-1];if(r instanceof Error) throw r;return typeof r==='function'?r(params):r;}}};};
@@ -26,9 +27,21 @@ test('rascunho: pesquisa na web, manda fotos + catálogo e confere numa segunda 
   assert.match(first.input[0].content.at(-1).text,/chegou hoje/);
   assert.match(first.instructions,/Peixe-palhaço Ocellaris/,'usa o catálogo como exemplo de estilo');
   assert.match(first.instructions,/Pesquise cada candidato/);
+  assert.match(first.instructions,/"nome" é o nome popular em português/);
   assert.deepEqual(first.text.format.schema.properties.categoria.enum,['peixes','corais']);
   assert.match(second.input[0].content.at(-1).text,/Zebrasoma flavescens/,'conferência recebe só a identificação');
   assert.equal(second.tools,undefined);
+});
+
+test('rascunho: reconhece o mesmo animal em outra cor e só aceita produtos que existem no banco',async()=>{
+  const client=fakeClient(reply(draftJson({nome:'Coral Dendronephthya Amarelo',categoria:'corais',relacionados:['coral dendronephthya rosa','Produto Inventado']})),reply(ok));
+  const draft=await draftProduct({images:['https://a/b.jpg'],client,catalog});
+  assert.equal(draft.name,'Coral Dendronephthya Amarelo');
+  assert.deepEqual(draft.related,['Coral Dendronephthya Rosa']);
+  const instr=client.calls[0].instructions;
+  assert.match(instr,/Produtos já cadastrados[\s\S]*Coral Dendronephthya Rosa \[corais\] — Dendronephthya sp/);
+  assert.match(instr,/MESMO nome-base/);
+  assert.ok(client.calls[0].text.format.schema.required.includes('relacionados'));
 });
 
 test('rascunho: conferência divergente derruba a confiança e explica o que conferir',async()=>{

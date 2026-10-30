@@ -8,6 +8,7 @@ import {db} from '../db.js';
 export const DEFAULT_MODEL='gpt-4.1-mini';
 const MAX_IMAGES=5;
 const CATALOG_SAMPLE=40;
+const CATALOG_NAMES=300;
 
 // Persona padrão; poderá ser sobrescrita fora do código (env AI_PRODUCT_PERSONA).
 const PERSONA=`Você cadastra produtos na Valente Fish, loja de aquarismo marinho no Rio de Janeiro (peixes, corais, invertebrados, rações, filtragem, tratamentos e equipamentos).
@@ -22,7 +23,9 @@ const METHOD=`Como identificar (siga na ordem, antes de escrever):
 2. Liste de 2 a 3 candidatos plausíveis (família, gênero, espécie ou modelo).
 3. Pesquise cada candidato na web (FishBase, Reef Life Survey, WoRMS, LiveAquaria, site do fabricante) e compare os traços diagnósticos documentados com o que você descreveu no passo 1.
 4. Escolha o candidato cujos traços batem com a foto. Se nenhum bater bem, desça para o nível que você consegue afirmar (ex.: "peixe-papagaio (Scaridae)") e use confiança baixa.
-5. Use nos fatos da descrição (tamanho, temperamento, cuidados) só o que as fontes confirmam, e liste as URLs consultadas em "fontes".`;
+5. Use nos fatos da descrição (tamanho, temperamento, cuidados) só o que as fontes confirmam, e liste as URLs consultadas em "fontes".
+6. O campo "nome" é o nome popular em português, como o cliente procura na loja (ex.: "Peixe-palhaço Ocellaris", "Coral Cérebro Verde", "Tang Amarelo"), nunca só o nome científico. O nome científico vai em "identificacao" e na descrição.
+7. Confira a lista de produtos já cadastrados. Muitos animais (principalmente corais e alguns peixes) são vendidos em várias cores ou variações. Se a foto for do mesmo animal de um produto da lista, mesmo com outra cor, use o MESMO nome-base que a loja já usa e troque só a cor/variação (ex.: já existe "Coral Dendronephthya Rosa" e a foto é amarela → "Coral Dendronephthya Amarelo"), liste esses produtos em "relacionados" e reaproveite os fatos da espécie. Se ainda não existir na loja, use o nome popular mais conhecido no aquarismo brasileiro, acrescentando a cor quando a espécie tiver variações de cor.`;
 
 const CATEGORY={type:'string',description:'Slug da categoria mais adequada'};
 const DRAFT_SCHEMA={
@@ -33,15 +36,17 @@ const DRAFT_SCHEMA={
     caracteristicas_observadas:{type:'string',description:'O que a foto mostra (passo 1)'},
     candidatos_descartados:{type:'string',description:'Outros candidatos e por que foram descartados'},
     identificacao:{type:'string',description:'Nome científico (animais) ou marca/modelo (produtos) escolhido, ou o nível taxonômico seguro'},
-    nome:{type:'string',description:'Nome do produto como aparece na loja, no padrão dos nomes do catálogo'},
+    nome:{type:'string',description:'Nome popular em português, no padrão dos nomes do catálogo (sem o nome científico)'},
     categoria:CATEGORY,
     descricao:{type:'string',description:'Descrição completa para a página do produto'},
     selo:{type:'string',description:'Selo curto (ex.: "Quarentenado", "Novidade") ou vazio'},
     confianca:{type:'string',enum:['alta','media','baixa'],description:'Confiança na identificação'},
     observacoes:{type:'string',description:'Avisos para quem vai revisar (dúvidas, o que conferir); vazio se nada'},
-    fontes:{type:'array',items:{type:'string'},description:'URLs consultadas'}
+    fontes:{type:'array',items:{type:'string'},description:'URLs consultadas'},
+    relacionados:{type:'array',items:{type:'string'},description:'Nomes exatos de produtos já cadastrados que são o mesmo animal/produto (outra cor, variação ou tamanho); vazio se nenhum'}
   }
 };
+DRAFT_SCHEMA.required.push('relacionados');
 const CHECK_SCHEMA={
   type:'object',
   additionalProperties:false,
@@ -64,13 +69,19 @@ export async function loadCatalog(sql=db()){
     from public.products p left join public.categories c on c.id=p.category_id
     where p.active=true and length(p.description)>0
     order by p.updated_at desc limit ${CATALOG_SAMPLE}`;
-  return {categories,products};
+  // Todos os nomes (inclusive ocultos), com o começo da descrição, para reconhecer o mesmo animal em outra cor.
+  const names=await sql`
+    select p.name,coalesce(c.slug,p.category) as categoria,left(p.description,140) as resumo
+    from public.products p left join public.categories c on c.id=p.category_id
+    order by p.name limit ${CATALOG_NAMES}`;
+  return {categories,products,names};
 }
 
-function catalogText({categories,products}){
+function catalogText({categories,products,names=[]}){
   const cats=categories.map(c=>`- ${c.slug}: ${c.name}${c.description?` — ${c.description}`:''}`).join('\n');
   const items=products.map(p=>`### ${p.name} [${p.categoria}]${p.badge?` (selo: ${p.badge})`:''}\n${String(p.description).slice(0,600)}`).join('\n\n');
-  return `Categorias disponíveis:\n${cats}\n\nExemplos do catálogo atual (siga o estilo):\n\n${items||'(catálogo ainda sem descrições)'}`;
+  const list=names.map(p=>`- ${p.name} [${p.categoria}]${p.resumo?` — ${String(p.resumo).replace(/\s+/g,' ').trim()}`:''}`).join('\n');
+  return `Categorias disponíveis:\n${cats}\n\nProdutos já cadastrados (use para manter os nomes consistentes):\n${list||'(nenhum)'}\n\nExemplos do catálogo atual (siga o estilo):\n\n${items||'(catálogo ainda sem descrições)'}`;
 }
 
 const imageParts=images=>images.map(url=>({type:'input_image',image_url:url,detail:'high'}));
@@ -160,6 +171,9 @@ export async function draftProduct({images,notes='',sql,env=process.env,client,c
   }
 
   const category=data.categories.find(c=>c.slug===draft.categoria)||null;
+  // Só nomes que existem mesmo no banco (a IA não pode inventar "relacionados").
+  const known=new Map((data.names||[]).map(p=>[p.name.toLowerCase(),p.name]));
+  const related=[...new Set((draft.relacionados||[]).map(n=>known.get(String(n).trim().toLowerCase())).filter(Boolean))];
   return {
     name:String(draft.nome||'').trim(),
     categoryId:category?.id||null,
@@ -172,6 +186,7 @@ export async function draftProduct({images,notes='',sql,env=process.env,client,c
     verified:check?check.compativel:null,
     notes:notesOut.filter(Boolean).join(' '),
     sources,
+    related,
     model:response.model
   };
 }
