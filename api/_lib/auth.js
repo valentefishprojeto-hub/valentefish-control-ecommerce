@@ -39,9 +39,14 @@ export async function profileRole(userId,{sql}={}){
   }
 }
 
+// Decisão da loja: o admin abre sem login. ADMIN_LOGIN=on na Vercel volta a exigir conta admin
+// (sem login, qualquer pessoa com o endereço vê clientes, vendas e financeiro e altera o catálogo).
+export const adminLoginRequired=(env=process.env)=>String(env.ADMIN_LOGIN||'').trim().toLowerCase()==='on';
+
 export function adminOnly(handler,{authenticate=currentUser,env=process.env,roleOf=profileRole}={}){
   return async function guarded(req,res){
     res.setHeader('Cache-Control','no-store');
+    if(!adminLoginRequired(env)){req.user=null;return handler(req,res);}
     let user;
     try{
       user=await authenticate(req,{required:true});

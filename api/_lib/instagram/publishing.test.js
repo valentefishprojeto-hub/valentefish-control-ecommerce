@@ -27,7 +27,7 @@ test('acesso só para administrador validado e agendador com segredo',async()=>{
   assert.throws(()=>allowedAsset('https://evil.test/x',{APP_URL:'https://loja.test'}));
   assert.throws(()=>allowedAsset('http://169.254.169.254/x',{APP_URL:'https://loja.test'}));
   const res={status(n){this.code=n;return this;},json(v){this.value=v;return this;},setHeader(){}};
-  await createMarketingHandler({authenticate:async()=>({id:'customer'})})({method:'GET'},res);
+  await createMarketingHandler({authenticate:async()=>({id:'customer'}),env:{ADMIN_LOGIN:'on'}})({method:'GET'},res);
   assert.equal(res.code,403);
 });
 test('renderiza JPEG real com foto local, logo, acentos e proporções corretas',async()=>{

@@ -4,6 +4,12 @@
       "maxDuration": 120
     }
   },
+  "headers": [
+    {
+      "source": "/admin(.*)",
+      "headers": [{"key": "X-Robots-Tag", "value": "noindex, nofollow"}]
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",

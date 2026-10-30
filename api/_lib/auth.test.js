@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {adminOnly,profileRole} from './auth.js';
+import {adminLoginRequired,adminOnly,profileRole} from './auth.js';
 import router from '../index.js';
 
 function reply(){
@@ -11,6 +11,7 @@ function reply(){
 }
 
 const handler=async(req,res)=>res.status(200).json({ok:true,user:req.user.id});
+const handler2=async(_req,res)=>res.status(200).json({ok:true});
 const as=user=>async(_req,{required})=>{
   if(!user&&required) throw Object.assign(new Error('Faça login para continuar'),{status:401});
   return user;
@@ -18,29 +19,29 @@ const as=user=>async(_req,{required})=>{
 
 test('rotas do ERP exigem login de administrador', async()=>{
   let res=reply();
-  await adminOnly(handler,{authenticate:as(null),env:{}})({headers:{}},res);
+  await adminOnly(handler,{authenticate:as(null),env:{ADMIN_LOGIN:'on'}})({headers:{}},res);
   assert.equal(res.statusCode,401);
 
   res=reply();
-  await adminOnly(handler,{authenticate:as({id:'u1',user_metadata:{role:'admin'}}),env:{}})({headers:{}},res);
+  await adminOnly(handler,{authenticate:as({id:'u1',user_metadata:{role:'admin'}}),env:{ADMIN_LOGIN:'on'}})({headers:{}},res);
   assert.equal(res.statusCode,403,'user_metadata não concede acesso');
 
   res=reply();
-  await adminOnly(handler,{authenticate:as({id:'u1',app_metadata:{role:'admin'}}),env:{}})({headers:{}},res);
+  await adminOnly(handler,{authenticate:as({id:'u1',app_metadata:{role:'admin'}}),env:{ADMIN_LOGIN:'on'}})({headers:{}},res);
   assert.deepEqual([res.statusCode,res.body],[200,{ok:true,user:'u1'}]);
 
   res=reply();
-  await adminOnly(handler,{authenticate:as({id:'u2'}),env:{IG_PUBLISH_ADMIN_IDS:'u1, u2'}})({headers:{}},res);
+  await adminOnly(handler,{authenticate:as({id:'u2'}),env:{ADMIN_LOGIN:'on',IG_PUBLISH_ADMIN_IDS:'u1, u2'}})({headers:{}},res);
   assert.equal(res.statusCode,200);
   assert.equal(res.headers['Cache-Control'],'no-store');
 });
 
 test('profiles.role = admin libera o ERP; cliente não', async()=>{
   let res=reply();
-  await adminOnly(handler,{authenticate:as({id:'u3'}),env:{},roleOf:async id=>id==='u3'?'admin':null})({headers:{}},res);
+  await adminOnly(handler,{authenticate:as({id:'u3'}),env:{ADMIN_LOGIN:'on'},roleOf:async id=>id==='u3'?'admin':null})({headers:{}},res);
   assert.equal(res.statusCode,200);
   res=reply();
-  await adminOnly(handler,{authenticate:as({id:'u4'}),env:{},roleOf:async()=>'cliente'})({headers:{}},res);
+  await adminOnly(handler,{authenticate:as({id:'u4'}),env:{ADMIN_LOGIN:'on'},roleOf:async()=>'cliente'})({headers:{}},res);
   assert.equal(res.statusCode,403);
 });
 
@@ -60,7 +61,17 @@ test('migração: só a conta admin vira admin e cliente não consegue se promov
   assert.equal(await profileRole(client.id,{sql}),'cliente');
 });
 
-test('o roteador bloqueia /api/erp/* sem token antes de tocar no banco', async()=>{
+test('admin sem login por padrão; ADMIN_LOGIN=on volta a exigir conta admin', async()=>{
+  const res=reply();
+  await adminOnly(handler2,{authenticate:as(null),env:{}})({headers:{}},res);
+  assert.equal(res.statusCode,200);
+  assert.equal(adminLoginRequired({ADMIN_LOGIN:' ON '}),true);
+  assert.equal(adminLoginRequired({}),false);
+});
+
+test('o roteador bloqueia /api/erp/* sem token antes de tocar no banco (com ADMIN_LOGIN=on)', async t=>{
+  const previous=process.env.ADMIN_LOGIN;process.env.ADMIN_LOGIN='on';
+  t.after(()=>{if(previous===undefined) delete process.env.ADMIN_LOGIN; else process.env.ADMIN_LOGIN=previous;});
   for(const route of ['erp/dashboard','erp/products','erp/categories','erp/stock','erp/customers','erp/sales','erp/finance','erp/commerce','erp/upload']){
     const res=reply();
     await router({method:'GET',headers:{},query:{route},url:`/api/${route}`},res);

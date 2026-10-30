@@ -1,5 +1,5 @@
 import {timingSafeEqual} from 'node:crypto';
-import {currentUser,isAdmin} from '../../_lib/auth.js';
+import {adminLoginRequired,currentUser,isAdmin} from '../../_lib/auth.js';
 import {body,method} from '../../_lib/http.js';
 import {db} from '../../_lib/db.js';
 import {validateTemplate,validateSchedule,captionFor} from '../../../shared/instagram-publishing.js';
@@ -43,8 +43,10 @@ export function createMarketingHandler({sql:client,authenticate=currentUser,env=
   if(!method(req,res,['GET','POST'])) return;
   res.setHeader('Cache-Control','no-store');
   try{
-    const user=await authenticate(req,{required:true});
-    if(!isAdmin(user,env)) return res.status(403).json({error:'Esta área está disponível apenas para administradores autorizados'});
+    if(adminLoginRequired(env)){
+      const user=await authenticate(req,{required:true});
+      if(!isAdmin(user,env)) return res.status(403).json({error:'Esta área está disponível apenas para administradores autorizados'});
+    }
     const sql=client||db();
     if(req.method==='GET'){
       const [settings,templates,schedules,jobs,categories,products]=await Promise.all([
