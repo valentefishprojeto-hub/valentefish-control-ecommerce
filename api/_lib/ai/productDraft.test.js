@@ -88,3 +88,13 @@ test('rascunho: lê categorias e exemplos do banco real',async t=>{
   assert.ok(draft.categoryId,'categoria do banco');
   assert.equal(draft.notes,'conferir espécie');
 });
+test('memória aprovada persiste nomes populares e entra no contexto da foto',async t=>{
+  const database=await testDatabase();t.after(()=>database.close());const {sql}=database;
+  const [product]=await sql`select id from public.products where category='peixes' limit 1`;
+  await sql`insert into public.animal_memory(product_id,scientific_name,popular_names,confirmed_notes)
+    values (${product.id},'Zebrasoma flavescens',${['tang amarelo','cirurgião amarelo']},'Nome confirmado pela equipe')`;
+  const client=fakeClient(reply(draftJson()),reply(ok));
+  await draftProduct({images:['https://a/b.jpg'],sql,client});
+  assert.match(client.calls[0].instructions,/tang amarelo, cirurgião amarelo/);
+  assert.match(client.calls[0].instructions,/Nome confirmado pela equipe/);
+});

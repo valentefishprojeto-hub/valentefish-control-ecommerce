@@ -17,6 +17,7 @@ import sales from './_routes/erp/sales.js';
 import stock from './_routes/erp/stock.js';
 import upload from './_routes/erp/upload.js';
 import aiProduct from './_routes/erp/ai-product.js';
+import animalMemory from './_routes/erp/animal-memory.js';
 import quote from './_routes/shipping/quote.js';
 import tracking from './_routes/shipping/tracking.js';
 import mercadoPago from './_routes/webhooks/mercado-pago.js';
@@ -36,6 +37,7 @@ const routes={
   'marketing/instagram':instagramMarketing,
   'marketing/instagram/run':instagramPublisher,
   'instagram/maintenance':instagramMaintenance,
+  'erp/animal-memory':animalMemory,
   'erp/categories':adminOnly(categories),
   'erp/commerce':adminOnly(commerce),
   'erp/customers':adminOnly(customers),

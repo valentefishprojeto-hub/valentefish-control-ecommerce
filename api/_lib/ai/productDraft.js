@@ -74,14 +74,18 @@ export async function loadCatalog(sql=db()){
     select p.name,coalesce(c.slug,p.category) as categoria,left(p.description,140) as resumo
     from public.products p left join public.categories c on c.id=p.category_id
     order by p.name limit ${CATALOG_NAMES}`;
-  return {categories,products,names};
+  const memory=await sql`select p.name as product_name,p.category,m.scientific_name,m.popular_names,m.confirmed_notes
+    from public.animal_memory m join public.products p on p.id=m.product_id
+    order by m.updated_at desc limit 300`;
+  return {categories,products,names,memory};
 }
 
-function catalogText({categories,products,names=[]}){
+function catalogText({categories,products,names=[],memory=[]}){
   const cats=categories.map(c=>`- ${c.slug}: ${c.name}${c.description?` — ${c.description}`:''}`).join('\n');
   const items=products.map(p=>`### ${p.name} [${p.categoria}]${p.badge?` (selo: ${p.badge})`:''}\n${String(p.description).slice(0,600)}`).join('\n\n');
   const list=names.map(p=>`- ${p.name} [${p.categoria}]${p.resumo?` — ${String(p.resumo).replace(/\s+/g,' ').trim()}`:''}`).join('\n');
-  return `Categorias disponíveis:\n${cats}\n\nProdutos já cadastrados (use para manter os nomes consistentes):\n${list||'(nenhum)'}\n\nExemplos do catálogo atual (siga o estilo):\n\n${items||'(catálogo ainda sem descrições)'}`;
+  const approved=memory.map(m=>`- ${m.product_name} [${m.category}]: ${m.scientific_name}; nomes populares: ${(m.popular_names||[]).join(', ')||'(nenhum)'}${m.confirmed_notes?`; notas confirmadas: ${String(m.confirmed_notes).slice(0,400)}`:''}`).join('\n');
+  return `Categorias disponíveis:\n${cats}\n\nMemória de animais aprovada pela equipe (nomes e identificação confirmados; compare sempre os traços da foto):\n${approved||'(ainda vazia)'}\n\nProdutos já cadastrados (use para manter os nomes consistentes):\n${list||'(nenhum)'}\n\nExemplos do catálogo atual (siga o estilo):\n\n${items||'(catálogo ainda sem descrições)'}`;
 }
 
 const imageParts=images=>images.map(url=>({type:'input_image',image_url:url,detail:'high'}));
