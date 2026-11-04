@@ -61,12 +61,12 @@ test('migração: só a conta admin vira admin e cliente não consegue se promov
   assert.equal(await profileRole(client.id,{sql}),'cliente');
 });
 
-test('admin sem login por padrão; ADMIN_LOGIN=on volta a exigir conta admin', async()=>{
+test('admin exige login por padrão, mesmo sem variável de ambiente', async()=>{
   const res=reply();
   await adminOnly(handler2,{authenticate:as(null),env:{}})({headers:{}},res);
-  assert.equal(res.statusCode,200);
+  assert.equal(res.statusCode,401);
   assert.equal(adminLoginRequired({ADMIN_LOGIN:' ON '}),true);
-  assert.equal(adminLoginRequired({}),false);
+  assert.equal(adminLoginRequired({ADMIN_LOGIN:'off'}),true);
 });
 
 test('o roteador bloqueia /api/erp/* sem token antes de tocar no banco (com ADMIN_LOGIN=on)', async t=>{

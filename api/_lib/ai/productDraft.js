@@ -24,8 +24,8 @@ const METHOD=`Como identificar (siga na ordem, antes de escrever):
 3. Pesquise cada candidato na web (FishBase, Reef Life Survey, WoRMS, LiveAquaria, site do fabricante) e compare os traços diagnósticos documentados com o que você descreveu no passo 1.
 4. Escolha o candidato cujos traços batem com a foto. Se nenhum bater bem, desça para o nível que você consegue afirmar (ex.: "peixe-papagaio (Scaridae)") e use confiança baixa.
 5. Use nos fatos da descrição (tamanho, temperamento, cuidados) só o que as fontes confirmam, e liste as URLs consultadas em "fontes".
-6. O campo "nome" é o nome popular em português, como o cliente procura na loja (ex.: "Peixe-palhaço Ocellaris", "Coral Cérebro Verde", "Tang Amarelo"), nunca só o nome científico. O nome científico vai em "identificacao" e na descrição.
-7. Confira a lista de produtos já cadastrados. Muitos animais (principalmente corais e alguns peixes) são vendidos em várias cores ou variações. Se a foto for do mesmo animal de um produto da lista, mesmo com outra cor, use o MESMO nome-base que a loja já usa e troque só a cor/variação (ex.: já existe "Coral Dendronephthya Rosa" e a foto é amarela → "Coral Dendronephthya Amarelo"), liste esses produtos em "relacionados" e reaproveite os fatos da espécie. Se ainda não existir na loja, use o nome popular mais conhecido no aquarismo brasileiro, acrescentando a cor quando a espécie tiver variações de cor.`;
+6. O campo "nome" é o nome popular em português, como o cliente procura na loja (ex.: "Peixe-palhaço Ocellaris", "Coral Cérebro Verde", "Tang Amarelo"), nunca só o nome científico. O nome científico vai em "identificacao" e na descrição. Para nomes falados no RJ, priorize os que a equipe marcou na memória como regionais. Se não houver nome regional confirmado, sugira em "observacoes" um nome possível para revisão, com fonte; não o afirme como uso regional estabelecido.
+7. Confira a lista de produtos já cadastrados. Cor diferente não prova que é a mesma espécie, sobretudo para corais. Reaproveite o nome-base e fatos de um animal da memória somente quando os traços diagnósticos da foto e o nome científico confirmado forem compatíveis. Se a memória só confirmar gênero ou família, não eleve a identificação a espécie. Liste em "relacionados" apenas produtos cujo vínculo seja sustentado; se houver dúvida, deixe a relação em "observacoes" para revisão. Para variações confirmadas da mesma espécie, preserve o nome-base aprovado e troque apenas o descritor de cor/variação.`;
 
 const CATEGORY={type:'string',description:'Slug da categoria mais adequada'};
 const DRAFT_SCHEMA={
@@ -74,7 +74,7 @@ export async function loadCatalog(sql=db()){
     select p.name,coalesce(c.slug,p.category) as categoria,left(p.description,140) as resumo
     from public.products p left join public.categories c on c.id=p.category_id
     order by p.name limit ${CATALOG_NAMES}`;
-  const memory=await sql`select p.name as product_name,p.category,m.scientific_name,m.popular_names,m.confirmed_notes
+  const memory=await sql`select p.name as product_name,p.category,m.scientific_name,m.popular_names,m.rj_names,m.confirmed_notes
     from public.animal_memory m join public.products p on p.id=m.product_id
     order by m.updated_at desc limit 300`;
   return {categories,products,names,memory};
@@ -84,7 +84,7 @@ function catalogText({categories,products,names=[],memory=[]}){
   const cats=categories.map(c=>`- ${c.slug}: ${c.name}${c.description?` — ${c.description}`:''}`).join('\n');
   const items=products.map(p=>`### ${p.name} [${p.categoria}]${p.badge?` (selo: ${p.badge})`:''}\n${String(p.description).slice(0,600)}`).join('\n\n');
   const list=names.map(p=>`- ${p.name} [${p.categoria}]${p.resumo?` — ${String(p.resumo).replace(/\s+/g,' ').trim()}`:''}`).join('\n');
-  const approved=memory.map(m=>`- ${m.product_name} [${m.category}]: ${m.scientific_name}; nomes populares: ${(m.popular_names||[]).join(', ')||'(nenhum)'}${m.confirmed_notes?`; notas confirmadas: ${String(m.confirmed_notes).slice(0,400)}`:''}`).join('\n');
+  const approved=memory.map(m=>`- ${m.product_name} [${m.category}]: ${m.scientific_name}; nomes populares: ${(m.popular_names||[]).join(', ')||'(nenhum)'}${m.rj_names?.length?`; nomes usados no RJ confirmados pela equipe: ${m.rj_names.join(', ')}`:''}${m.confirmed_notes?`; notas confirmadas: ${String(m.confirmed_notes).slice(0,400)}`:''}`).join('\n');
   return `Categorias disponíveis:\n${cats}\n\nMemória de animais aprovada pela equipe (nomes e identificação confirmados; compare sempre os traços da foto):\n${approved||'(ainda vazia)'}\n\nProdutos já cadastrados (use para manter os nomes consistentes):\n${list||'(nenhum)'}\n\nExemplos do catálogo atual (siga o estilo):\n\n${items||'(catálogo ainda sem descrições)'}`;
 }
 
@@ -177,7 +177,10 @@ export async function draftProduct({images,notes='',sql,env=process.env,client,c
   const category=data.categories.find(c=>c.slug===draft.categoria)||null;
   // Só nomes que existem mesmo no banco (a IA não pode inventar "relacionados").
   const known=new Map((data.names||[]).map(p=>[p.name.toLowerCase(),p.name]));
-  const related=[...new Set((draft.relacionados||[]).map(n=>known.get(String(n).trim().toLowerCase())).filter(Boolean))];
+  const scientific=String(draft.identificacao||'').trim().toLowerCase();
+  const approvedRelated=new Set((data.memory||[]).filter(m=>String(m.scientific_name).trim().toLowerCase()===scientific).map(m=>m.product_name.toLowerCase()));
+  const related=[...new Set((draft.relacionados||[]).map(n=>known.get(String(n).trim().toLowerCase())).filter(n=>n&&approvedRelated.has(n.toLowerCase())))];
+  const unconfirmed=(draft.relacionados||[]).filter(n=>known.has(String(n).trim().toLowerCase())&&!approvedRelated.has(String(n).trim().toLowerCase()));
   return {
     name:String(draft.nome||'').trim(),
     categoryId:category?.id||null,
@@ -188,7 +191,7 @@ export async function draftProduct({images,notes='',sql,env=process.env,client,c
     observed:String(draft.caracteristicas_observadas||'').trim(),
     confidence,
     verified:check?check.compativel:null,
-    notes:notesOut.filter(Boolean).join(' '),
+    notes:[...notesOut,...(unconfirmed.length?[`Relação com ${unconfirmed.slice(0,5).join(', ')} ainda não confirmada pela memória da loja.`]:[])].filter(Boolean).join(' '),
     sources,
     related,
     model:response.model

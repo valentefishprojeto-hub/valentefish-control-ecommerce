@@ -13,14 +13,15 @@ export default async function handler(req,res){
     const input=body(req);
     const name=String(input.scientificName||'').trim();
     const names=[...new Set((Array.isArray(input.popularNames)?input.popularNames:[]).map(x=>String(x).trim()).filter(Boolean))];
+    const rjNames=[...new Set((Array.isArray(input.rjNames)?input.rjNames:[]).map(x=>String(x).trim()).filter(Boolean))];
     const notes=String(input.confirmedNotes||'').trim();
-    if(!/^[0-9a-f-]{36}$/i.test(input.productId||'')||name.length<3||name.length>180||names.length>20||names.some(x=>x.length>120)||notes.length>1500)
+    if(!/^[0-9a-f-]{36}$/i.test(input.productId||'')||name.length<3||name.length>180||names.length>20||names.some(x=>x.length>120)||rjNames.length>20||rjNames.some(x=>x.length>120)||notes.length>1500)
       return res.status(422).json({error:'Confira produto, identificação e nomes populares'});
     const [product]=await sql`select id from public.products where id=${input.productId} and category in ('peixes','corais','invertebrados')`;
     if(!product) return res.status(422).json({error:'Selecione um animal cadastrado'});
-    const [saved]=await sql`insert into public.animal_memory(product_id,scientific_name,popular_names,confirmed_notes,approved_by)
-      values (${product.id},${name},${names},${notes},${user.id})
-      on conflict(product_id) do update set scientific_name=excluded.scientific_name,popular_names=excluded.popular_names,
+    const [saved]=await sql`insert into public.animal_memory(product_id,scientific_name,popular_names,rj_names,confirmed_notes,approved_by)
+      values (${product.id},${name},${names},${rjNames},${notes},${user.id})
+      on conflict(product_id) do update set scientific_name=excluded.scientific_name,popular_names=excluded.popular_names,rj_names=excluded.rj_names,
         confirmed_notes=excluded.confirmed_notes,approved_by=excluded.approved_by returning id`;
     return res.status(200).json({ok:true,id:saved.id});
   }catch(error){return res.status(error.status||500).json({error:error.status?error.message:'Não foi possível atualizar a memória dos animais'});}

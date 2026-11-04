@@ -2,11 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {buildRequest,buildCheckRequest,draftProduct,safeSources,DEFAULT_MODEL} from './productDraft.js';
 import {testDatabase} from '../instagram/test-db.js';
+import {readFile} from 'node:fs/promises';
+import sharp from 'sharp';
 
 const catalog={
   categories:[{id:'c1',slug:'peixes',name:'Peixes',description:''},{id:'c2',slug:'corais',name:'Corais',description:'Corais de recife'}],
   products:[{name:'Peixe-palhaço Ocellaris',description:'Clássico do aquário marinho...',badge:'Quarentenado',categoria:'peixes'}],
-  names:[{name:'Coral Dendronephthya Rosa',categoria:'corais',resumo:'Dendronephthya sp., coral mole...'},{name:'Peixe-palhaço Ocellaris',categoria:'peixes',resumo:'Amphiprion ocellaris'}]
+  names:[{name:'Coral Dendronephthya Rosa',categoria:'corais',resumo:'Dendronephthya sp., coral mole...'},{name:'Peixe-palhaço Ocellaris',categoria:'peixes',resumo:'Amphiprion ocellaris'}],
+  memory:[{product_name:'Coral Dendronephthya Rosa',category:'corais',scientific_name:'Dendronephthya sp.',popular_names:['coral árvore'],rj_names:['dendro rosa'],confirmed_notes:'coral mole'}]
 };
 const reply=(json,extra={})=>({model:DEFAULT_MODEL,status:'completed',output_text:JSON.stringify(json),output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(json),annotations:extra.annotations||[]}]}],...extra});
 const draftJson=(over={})=>({caracteristicas_observadas:'corpo oval amarelo',candidatos_descartados:'Centropyge: boca diferente',identificacao:'Zebrasoma flavescens',
@@ -34,14 +37,32 @@ test('rascunho: pesquisa na web, manda fotos + catálogo e confere numa segunda 
 });
 
 test('rascunho: reconhece o mesmo animal em outra cor e só aceita produtos que existem no banco',async()=>{
-  const client=fakeClient(reply(draftJson({nome:'Coral Dendronephthya Amarelo',categoria:'corais',relacionados:['coral dendronephthya rosa','Produto Inventado']})),reply(ok));
+  const client=fakeClient(reply(draftJson({nome:'Coral Dendronephthya Amarelo',identificacao:'Dendronephthya sp.',categoria:'corais',relacionados:['coral dendronephthya rosa','Produto Inventado']})),reply(ok));
   const draft=await draftProduct({images:['https://a/b.jpg'],client,catalog});
   assert.equal(draft.name,'Coral Dendronephthya Amarelo');
   assert.deepEqual(draft.related,['Coral Dendronephthya Rosa']);
   const instr=client.calls[0].instructions;
   assert.match(instr,/Produtos já cadastrados[\s\S]*Coral Dendronephthya Rosa \[corais\] — Dendronephthya sp/);
-  assert.match(instr,/MESMO nome-base/);
+  assert.match(instr,/preserve o nome-base aprovado/);
+  assert.match(instr,/nomes usados no RJ confirmados pela equipe: dendro rosa/);
   assert.ok(client.calls[0].text.format.schema.required.includes('relacionados'));
+});
+test('cor semelhante não associa espécies diferentes sem memória aprovada',async()=>{
+  const client=fakeClient(reply(draftJson({nome:'Coral Amarelo',identificacao:'Dendronephthya hemprichi',categoria:'corais',relacionados:['Coral Dendronephthya Rosa']})),reply(ok));
+  const draft=await draftProduct({images:['https://a/b.jpg'],client,catalog});
+  assert.deepEqual(draft.related,[]);
+  assert.match(draft.notes,/ainda não confirmada/);
+});
+test('fotos reais do catálogo entram na análise e na conferência em ordem',async()=>{
+  const files=['product-fish-yellow.png','product-fish-clown.png'];
+  for(const file of files){
+    const bytes=await readFile(new URL(`../../../public/store/${file}`,import.meta.url));
+    assert.equal((await sharp(bytes).metadata()).format,'png');
+  }
+  const images=files.map(file=>`https://loja.test/store/${file}`);
+  const client=fakeClient(reply(draftJson()),reply(ok));
+  await draftProduct({images,client,catalog});
+  for(const request of client.calls) assert.deepEqual(request.input[0].content.filter(x=>x.type==='input_image').map(x=>x.image_url),images);
 });
 
 test('rascunho: conferência divergente derruba a confiança e explica o que conferir',async()=>{
