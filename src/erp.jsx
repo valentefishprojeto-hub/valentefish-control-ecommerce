@@ -201,6 +201,7 @@ function AdminLogin({denied,onSuccess}){
 export function ErpApp({notify}){
   const [page,setPage]=useState(()=>pageFromPath(window.location.pathname));
   const [access,setAccess]=useState('checking');
+  const [loadError,setLoadError]=useState('');
   const [busy,setBusy]=useState(false);
   const [search,setSearch]=useState('');
   const [filter,setFilter]=useState('todos');
@@ -243,10 +244,18 @@ export function ErpApp({notify}){
   },[]);
 
   const loadAll=async()=>{
+    setAccess('checking');setLoadError('');
     try{
+      const session=await Promise.race([
+        getSupabase().auth.getSession(),
+        new Promise((_,reject)=>setTimeout(()=>reject(Object.assign(new Error('A sessão demorou demais. Tente novamente.'),{status:503})),8000))
+      ]);
+      const authToken=session.data.session?.access_token;
+      if(!authToken) return setAccess('login');
+      const options={authToken,timeoutMs:15000};
       const [dash,productData,categoryData,stockData,customerData,saleData,financeData,commerceData]=await Promise.all([
-        api('/api/erp/dashboard'),api('/api/erp/products'),api('/api/erp/categories'),api('/api/erp/stock'),
-        api('/api/erp/customers'),api('/api/erp/sales'),api('/api/erp/finance'),api('/api/erp/commerce').catch(()=>({}))
+        api('/api/erp/dashboard',options),api('/api/erp/products',options),api('/api/erp/categories',options),api('/api/erp/stock',options),
+        api('/api/erp/customers',options),api('/api/erp/sales',options),api('/api/erp/finance',options),api('/api/erp/commerce',{...options,timeoutMs:10000}).catch(()=>({}))
       ]);
       setDashboard(dash);setProducts(productData.products||[]);setCategories(categoryData.categories||[]);
       setStock(stockData);setCustomers(customerData.customers||[]);setSales(saleData.sales||[]);setFinance(financeData);setCommerce(commerceData);
@@ -254,8 +263,8 @@ export function ErpApp({notify}){
     }catch(error){
       if(error.status===401) return setAccess('login');
       if(error.status===403) return setAccess('denied');
-      setAccess('ok');
-      notify(error.message||'Não foi possível carregar o ERP');
+      setLoadError(error.message||'Não foi possível carregar o ERP');
+      setAccess('error');
     }
   };
   useEffect(()=>{loadAll()},[]);
@@ -302,6 +311,7 @@ export function ErpApp({notify}){
   const sourceTotal=commerceSources.reduce((sum,item)=>sum+item.visitors,0)||1;
 
   if(access==='checking') return <div className="erp-boot">Carregando ERP...</div>;
+  if(access==='error') return <div className="erp-login"><div className="erp-form"><BrandLockup layout="stacked"/><h1>Não foi possível carregar o ERP</h1><p role="alert">{loadError}</p><button type="button" onClick={loadAll}>Tentar novamente</button></div></div>;
   if(access!=='ok') return <AdminLogin denied={access==='denied'} onSuccess={loadAll}/>;
 
   return <div className="app erp-app">

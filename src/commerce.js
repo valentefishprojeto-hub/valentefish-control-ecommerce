@@ -88,12 +88,19 @@ export function saveOrder(order){
 }
 
 export async function api(path,options={}){
-  const headers={'content-type':'application/json',...options.headers};
-  try{
-    const {data}=await getSupabase().auth.getSession();
-    if(data.session?.access_token) headers.authorization=`Bearer ${data.session.access_token}`;
-  }catch{}
-  const response=await fetch(path,{credentials:'include',...options,headers,body:options.body?JSON.stringify(options.body):undefined});
+  const {authToken,timeoutMs=15000,...requestOptions}=options;
+  const headers={'content-type':'application/json',...requestOptions.headers};
+  if(authToken) headers.authorization=`Bearer ${authToken}`;
+  else if(!Object.hasOwn(options,'authToken')){
+    try{
+      const {data}=await getSupabase().auth.getSession();
+      if(data.session?.access_token) headers.authorization=`Bearer ${data.session.access_token}`;
+    }catch{}
+  }
+  let response;
+  try{response=await fetch(path,{credentials:'include',...requestOptions,headers,body:requestOptions.body?JSON.stringify(requestOptions.body):undefined,
+    signal:requestOptions.signal||AbortSignal.timeout(timeoutMs)});}
+  catch(error){if(error.name==='TimeoutError'||error.name==='AbortError') throw Object.assign(new Error('A conexão demorou demais. Tente novamente.'),{status:503});throw error;}
   const data=await response.json().catch(()=>({}));
   if(!response.ok) throw Object.assign(new Error(data.error||'Não foi possível concluir a operação'),{status:response.status,data});
   return data;
