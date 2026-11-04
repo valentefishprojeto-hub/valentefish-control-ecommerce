@@ -155,8 +155,8 @@
 .account-page .account-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
 .account-page .commerce-heading{align-items:start}
 .account-page .commerce-heading p{margin-top:10px}
-.account-logout{border:0;background:transparent;color:#5d7780;display:inline-flex;align-items:center;gap:8px;padding:8px 0;font-weight:800}
-.account-logout:hover{color:#075f86}
+.account-actions .account-logout{border:0;background:transparent;color:#5d7780;display:inline-flex;align-items:center;gap:8px;padding:8px 0;font-weight:800}
+.account-actions .account-logout:hover{color:#075f86}
 .account-profile{display:flex;align-items:center;gap:14px}
 .account-order{padding:14px 0;border-bottom:1px solid #e4eef0}
 .account-order-thumbs{display:flex;gap:6px}

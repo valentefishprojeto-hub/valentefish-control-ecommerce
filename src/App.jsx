@@ -295,7 +295,7 @@ function AuthPage({mode,busy,error,next,onSubmit,onGoogle,onSwitch}){
   </section>;
 }
 
-function AccountPage({session,orders,busy,error,onSave,onLogout,onShop}){
+function AccountPage({session,orders,busy,error,onSave,onLogout,onShop,onAdmin}){
   const [form,setForm]=useState({name:session?.name||'',phone:session?.phone||''});
   useEffect(()=>setForm({name:session?.name||'',phone:session?.phone||''}),[session]);
   const update=event=>setForm(current=>({...current,[event.target.name]:event.target.value}));
@@ -306,7 +306,10 @@ function AccountPage({session,orders,busy,error,onSave,onLogout,onShop}){
         <h1>Olá, {session.name.split(' ')[0]}</h1>
         <p>Seus dados e o histórico de pedidos ficam salvos aqui.</p>
       </div>
-      <button type="button" className="account-logout" onClick={onLogout}><LogOut size={16}/> Sair</button>
+      <div className="account-actions">
+        {session.admin&&<button type="button" onClick={onAdmin}>Voltar ao painel admin</button>}
+        <button type="button" className="account-logout" onClick={onLogout}><LogOut size={16}/> Sair</button>
+      </div>
     </div>
     <div className="account-grid">
       <article className="commerce-card">
@@ -698,7 +701,7 @@ function Shop({notify}){
 
     {storePage==='carrinho'&&<CartPage items={cartItems} suggestions={catalogProducts.filter(item=>!cartItems.some(cart=>(cart.slug||productSlug(cart.name))===(item.slug||productSlug(item.name)))).slice(0,4)} onOpen={openProduct} onAdd={addToCart} onQuantity={changeQuantity} onRemove={removeItem} onCheckout={()=>navigateTo(session?'/checkout':'/conta/entrar?next=/checkout')} onContinue={()=>navigateStore('produtos')}/>}
     {(storePage==='entrar'||storePage==='criar-conta'||(storePage==='conta'&&!session))&&<AuthPage mode={storePage==='criar-conta'?'criar-conta':'entrar'} busy={authBusy} error={authError} next={nextPath()} onSubmit={handleAuthSubmit} onGoogle={handleGoogle} onSwitch={()=>navigateTo((storePage==='criar-conta'?'/conta/entrar':'/conta/criar')+'?next='+encodeURIComponent(nextPath()))}/>}
-    {storePage==='conta'&&session&&<AccountPage session={session} orders={orders} busy={authBusy} error={authError} onSave={handleSaveAccount} onLogout={handleLogout} onShop={()=>navigateStore('produtos')}/>}
+    {storePage==='conta'&&session&&<AccountPage session={session} orders={orders} busy={authBusy} error={authError} onSave={handleSaveAccount} onLogout={handleLogout} onShop={()=>navigateStore('produtos')} onAdmin={()=>window.location.assign('/admin')}/>}
     {storePage==='checkout'&&session&&<CheckoutPage items={cartItems} session={session} busy={checkoutBusy} onSubmit={submitCheckout} onCart={()=>navigateTo('/carrinho')}/>}
     {(storePage==='sucesso'||storePage==='pendente'||storePage==='falha')&&<CheckoutResult status={storePage} onHome={()=>navigateStore('home')} onCart={()=>navigateTo('/carrinho')} onAccount={()=>navigateTo('/conta')}/>}
 
