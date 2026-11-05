@@ -32,7 +32,7 @@ O backend do bot atende DMs de @valentefish em `/api/webhooks/instagram`, pelo m
 
 ### Instalação e variáveis
 
-Requer Node 22+, `npm install` (ou `npm ci` com o lockfile atualizado). Aplique `supabase/migrations/20261023184307_instagram_bot.sql` após as migrations existentes, no processo habitual de deploy. Ela cria apenas `ig_conversations`, `ig_messages` e `ig_handoffs`, com RLS, revogação de acesso público e grants para `service_role`; reutiliza `private.set_updated_at()`.
+Requer Node 22+, `npm install` (ou `npm ci` com o lockfile atualizado). Aplique `supabase/migrations/20261023184307_instagram_bot.sql` e `supabase/migrations/20261105172130_instagram_bot_switch.sql` após as migrations anteriores, no processo habitual de deploy. A primeira cria as conversas, mensagens e encaminhamentos. A segunda cria o interruptor global `ig_bot_settings`. Ambas usam RLS, revogação de acesso público e grants para `service_role`.
 
 Configure no servidor, nunca no frontend nem em arquivos versionados:
 
@@ -47,7 +47,7 @@ Configure no servidor, nunca no frontend nem em arquivos versionados:
 | `META_GRAPH_VERSION` | Versão habilitada no app, por exemplo `v26.0`; não há versão fixa no código. |
 | `ANTHROPIC_API_KEY` | Chave da API Anthropic. |
 | `ANTHROPIC_MODEL` | ID de modelo autorizado na conta. O briefing sugere `claude-sonnet-5-5`; valide sua disponibilidade antes de configurar. Não há fallback silencioso para outro modelo. |
-| `IG_BOT_ENABLED` | Somente `true` habilita respostas; `false` ou ausência apenas registra mensagens. |
+| `IG_BOT_ENABLED` | Bloqueio de segurança no servidor. Precisa estar `true` para o botão do admin ligar o bot; `false` ou ausência apenas registra mensagens. |
 | `IG_HUMAN_PAUSE_HOURS` | Padrão 12; aceito entre 1 e 168 horas. |
 | `IG_DRY_RUN` | `true` somente em desenvolvimento; imprime mensagens sem chamar Graph. Bloqueado em `VERCEL_ENV=production`. |
 | `MELHOR_ENVIO_TOKEN`, `STORE_POSTAL_CODE` | Configuração existente de frete. |
@@ -104,7 +104,7 @@ O teste `runtime.test.js` inicia o runtime publicado `@vercel/node` com helpers 
 
 Echo de `mid` enviado pelo bot é ignorado. Echo desconhecido durante envio suspende novas partes enquanto é reconciliado, para não competir com o atendente. Uma intervenção humana não pode ser sobrescrita por resultado tardio do LLM. Após a pausa expirar, a próxima mensagem elegível pode reabrir o bot. `closed` permanece silencioso até intervenção manual.
 
-Para pausar tudo: `IG_BOT_ENABLED=false` e publique a configuração. As mensagens continuam sendo registradas. Para pausar ou retomar uma conversa, use o botão no painel. A pausa manual dura `IG_HUMAN_PAUSE_HOURS` (12 horas por padrão); depois desse prazo, a próxima mensagem pode reativar o bot. O painel de publicações automáticas foi retirado do menu; programações já ativas continuam executando até serem pausadas pela configuração/rota de marketing. Para operação direta por SQL em uma conexão administrativa segura, use parâmetros, nunca e-mail/ID concatenados:
+Para desligar todas as respostas imediatamente, use **Desligar bot** no painel. O webhook continua registrando mensagens para a equipe, sem responder. Ao ligar novamente, `enabled_at` é atualizado e o bot só atende eventos enviados depois desse horário: mensagens recebidas durante a pausa não são processadas retroativamente. Se `IG_BOT_ENABLED=false`, o servidor permanece desligado e o botão não consegue religar; ajuste a variável no servidor primeiro. Uma resposta que a Meta já aceitou antes do desligamento não pode ser recolhida. Para pausar ou retomar uma conversa individualmente, use o botão ao lado do histórico. A pausa individual dura `IG_HUMAN_PAUSE_HOURS` (12 horas por padrão); depois desse prazo, a próxima mensagem pode reativar o bot. O painel de publicações automáticas foi retirado do menu; programações já ativas continuam executando até serem pausadas pela configuração/rota de marketing. Para operação direta por SQL em uma conexão administrativa segura, use parâmetros, nunca e-mail/ID concatenados:
 
 ```sql
 -- Pausa manual por 12 horas

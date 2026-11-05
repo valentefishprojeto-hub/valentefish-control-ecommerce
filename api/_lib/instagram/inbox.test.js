@@ -55,3 +55,19 @@ test('busca e guarda o nome de usuário quando a Meta o fornece',async t=>{
   assert.equal(second.value.conversation.username,'cliente_rj');
   assert.equal(calls,1);
 });
+
+test('interruptor geral só aceita administrador e respeita bloqueio do servidor',async t=>{
+  const database=await testDatabase();t.after(()=>database.close());const {sql}=database;
+  const env={IG_BOT_ENABLED:'true'};
+  const handler=createInboxHandler({sql,env,authenticate:async req=>req.user||null,roleOf:async()=>null});
+  const user={id:'admin',app_metadata:{role:'admin'}};
+  const request=(enabled,account=user)=>({method:'POST',headers:{},query:{},body:{action:'bot_state',enabled},user:account});
+  const denied=response();await handler(request(false,{id:'cliente'}),denied);assert.equal(denied.code,403);
+  const off=response();await handler(request(false),off);assert.equal(off.code,200);assert.equal(off.value.bot.enabled,false);
+  const listed=response();await handler({method:'GET',headers:{},query:{},user},listed);assert.equal(listed.value.bot.enabled,false);
+  const bad=response();await handler(request('true'),bad);assert.equal(bad.code,422);
+  env.IG_BOT_ENABLED='false';
+  const blocked=response();await handler(request(true),blocked);assert.equal(blocked.code,409);
+  env.IG_BOT_ENABLED='true';
+  const on=response();await handler(request(true),on);assert.equal(on.code,200);assert.equal(on.value.bot.enabled,true);
+});

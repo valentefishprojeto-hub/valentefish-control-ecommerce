@@ -2,6 +2,7 @@ import {adminOnly} from '../../_lib/auth.js';
 import {db} from '../../_lib/db.js';
 import {body,method} from '../../_lib/http.js';
 import {lookupUsername} from '../../_lib/instagram/profile.js';
+import {readBotState,setBotEnabled} from '../../_lib/instagram/botState.js';
 
 const uuid=value=>typeof value==='string'&&/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(value);
 
@@ -23,20 +24,28 @@ export function createInboxHandler({sql:client,authenticate,roleOf,env=process.e
               conversation||= (await sql`select id,igsid,username,status,paused_until,last_customer_message_at,handoff_reason,created_at,updated_at from public.ig_conversations where id=${id}`)[0];
             }
           }
-          const [messages,handoffs]=await Promise.all([
+          const [messages,handoffs,bot]=await Promise.all([
             sql`select id,direction,author,text,attachments,tool_calls,created_at from public.ig_messages where conversation_id=${id} order by created_at desc,id desc limit 100`,
-            sql`select id,reason,summary,resolved_at,created_at from public.ig_handoffs where conversation_id=${id} order by created_at desc limit 10`
+            sql`select id,reason,summary,resolved_at,created_at from public.ig_handoffs where conversation_id=${id} order by created_at desc limit 10`,
+            readBotState(sql,env)
           ]);
-          return res.status(200).json({conversation,messages:messages.reverse(),handoffs,botEnabled:env.IG_BOT_ENABLED==='true'});
+          return res.status(200).json({conversation,messages:messages.reverse(),handoffs,bot,botEnabled:bot.enabled});
         }
         const conversations=await sql`select c.id,c.igsid,c.username,c.status,c.paused_until,c.last_customer_message_at,c.handoff_reason,
           last_message.text as last_text,last_message.author as last_author,last_message.created_at as last_message_at
           from public.ig_conversations c
           left join lateral (select text,author,created_at from public.ig_messages where conversation_id=c.id order by created_at desc,id desc limit 1) last_message on true
           order by coalesce(last_message.created_at,c.updated_at) desc,c.id desc limit 50`;
-        return res.status(200).json({conversations,botEnabled:env.IG_BOT_ENABLED==='true'});
+        const bot=await readBotState(sql,env);
+        return res.status(200).json({conversations,bot,botEnabled:bot.enabled});
       }
       const input=body(req);
+      if(input.action==='bot_state'){
+        if(typeof input.enabled!=='boolean') return res.status(422).json({error:'Estado do bot inválido'});
+        if(input.enabled&&env.IG_BOT_ENABLED!=='true') return res.status(409).json({error:'Ative IG_BOT_ENABLED no servidor antes de ligar o bot pelo painel'});
+        await setBotEnabled(sql,input.enabled);
+        return res.status(200).json({bot:await readBotState(sql,env)});
+      }
       if(!uuid(input.id)||!['pause','resume'].includes(input.action)) return res.status(422).json({error:'Ação ou conversa inválida'});
       const conversation=await sql.begin(async tx=>{
         const [current]=await tx`select id from public.ig_conversations where id=${input.id} for update`;

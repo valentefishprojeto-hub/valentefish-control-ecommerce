@@ -8,6 +8,7 @@ import {conversationReply} from './conversationReply.js';
 import {splitText} from './text.js';
 import {infoLoja} from './knowledge.js';
 import {storyReply,smallTalk} from './conversation.js';
+import {canBotReply} from './botState.js';
 
 const STALE_MS=10*60*1000;
 const active=conversation=>conversation.status==='bot'||conversation.status==='human'&&conversation.paused_until&&new Date(conversation.paused_until)<=new Date();
@@ -18,7 +19,7 @@ const inWindow=conversation=>{
 
 export function createHandler({sql,env=process.env,graph=createGraph({env}),agent=runAgent}={}){
   // Pausa pedida ao bot (atendente, saúde...): avisa o cliente uma única vez enquanto ninguém da equipe respondeu.
-  async function pausedNotice(conversation){
+  async function pausedNotice(conversation,timestamp){
     if(conversation.status!=='human'||!conversation.handoff_reason||conversation.handoff_reason==='humano_no_instagram'||conversation.handoff_reason.startsWith('echo:')) return;
     const [handoff]=await sql`select created_at from public.ig_handoffs where conversation_id=${conversation.id} and resolved_at is null`;
     if(!handoff) return;
@@ -31,6 +32,10 @@ export function createHandler({sql,env=process.env,graph=createGraph({env}),agen
       returning id`;
     if(!pending) return;
     try{
+      if(!await canBotReply(sql,env,timestamp)){
+        await sql`delete from public.ig_messages where id=${pending.id} and mid=${pendingMid}`;
+        return;
+      }
       const sent=await graph.sendText(conversation.igsid,text);
       await sql`update public.ig_messages set mid=${sent.message_id} where id=${pending.id}`;
     }catch{
@@ -96,10 +101,10 @@ export function createHandler({sql,env=process.env,graph=createGraph({env}),agen
       return null;
     });
     if(persistOnly) return persisted;
-    if(!persisted||echo||env.IG_BOT_ENABLED!=='true') return;
+    if(!persisted||echo||!await canBotReply(sql,env,timestamp)) return;
     const {conversation,messageId}=persisted;
     if(!inWindow(conversation)) return;
-    if(!active(conversation)) return pausedNotice(conversation);
+    if(!active(conversation)) return pausedNotice(conversation,timestamp);
     // Expiry reopens timed handoffs; closed conversations need explicit resumption.
     if(conversation.status==='human'){
       await sql`update public.ig_conversations set status='bot',paused_until=null,handoff_reason=null where id=${conversation.id} and paused_until<=now()`;
@@ -148,11 +153,15 @@ export function createHandler({sql,env=process.env,graph=createGraph({env}),agen
           await sleep(200);
           [current]=await sql`select * from public.ig_conversations where id=${conversation.id}`;
         }
-        if(env.IG_BOT_ENABLED!=='true'||!inWindow(current)||current.status==='closed'||current.handoff_reason==='humano_no_instagram'||current.handoff_reason?.startsWith('echo:')||!result.handoff&&!active(current)) break;
+        if(!await canBotReply(sql,env,timestamp)||!inWindow(current)||current.status==='closed'||current.handoff_reason==='humano_no_instagram'||current.handoff_reason?.startsWith('echo:')||!result.handoff&&!active(current)) break;
         const pendingMid='pending:'+randomUUID();
         const [pending]=await sql`insert into public.ig_messages(conversation_id,mid,direction,author,text,tool_calls)
           values (${conversation.id},${pendingMid},'out','bot',${part},${sql.json(result.toolCalls||[])}) returning id`;
         try{
+          if(!await canBotReply(sql,env,timestamp)){
+            await sql`delete from public.ig_messages where id=${pending.id} and mid=${pendingMid}`;
+            break;
+          }
           const sent=await graph.sendText(igsid,part);
           await sql`update public.ig_messages set mid=${sent.message_id} where id=${pending.id}`;
           delivered++;
@@ -165,11 +174,15 @@ export function createHandler({sql,env=process.env,graph=createGraph({env}),agen
       const handoff=await tools.encaminhar_humano({motivo:'falha_processamento',resumo:'Verificar conversa manualmente.'});
       console.error('Instagram: atendimento encaminhado após falha');
       // O cliente nunca fica sem resposta: avisa uma vez que a equipe vai continuar.
-      if(!delivered&&handoff?.mensagem&&env.IG_BOT_ENABLED==='true'){
+      if(!delivered&&handoff?.mensagem&&await canBotReply(sql,env,timestamp)){
         const pendingMid='pending:'+randomUUID();
         const [pending]=await sql`insert into public.ig_messages(conversation_id,mid,direction,author,text,tool_calls)
           values (${conversation.id},${pendingMid},'out','bot',${handoff.mensagem},${sql.json([{name:'aviso:falha'}])}) returning id`;
         try{
+          if(!await canBotReply(sql,env,timestamp)){
+            await sql`delete from public.ig_messages where id=${pending.id} and mid=${pendingMid}`;
+            return;
+          }
           const sent=await graph.sendText(igsid,handoff.mensagem);
           await sql`update public.ig_messages set mid=${sent.message_id} where id=${pending.id}`;
         }catch{
