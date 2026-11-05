@@ -65,6 +65,13 @@ test('fotos reais do catálogo entram na análise e na conferência em ordem',as
   for(const request of client.calls) assert.deepEqual(request.input[0].content.filter(x=>x.type==='input_image').map(x=>x.image_url),images);
 });
 
+test('foto do catálogo com caminho relativo chega à IA como URL HTTPS da loja',async()=>{
+  const client=fakeClient(reply(draftJson()),reply(ok));
+  await draftProduct({images:['/store/product-fish-yellow.png','//site-externo.test/foto.png'],client,catalog,env:{APP_URL:'https://loja.test'}});
+  for(const request of client.calls) assert.deepEqual(request.input[0].content.filter(x=>x.type==='input_image').map(x=>x.image_url),
+    ['https://loja.test/store/product-fish-yellow.png']);
+});
+
 test('rascunho: conferência divergente derruba a confiança e explica o que conferir',async()=>{
   const client=fakeClient(reply(draftJson({identificacao:'Cantherhines macrocerus',nome:'Peixe-porco Maculado'})),
     reply({compativel:false,divergencias:'boca em bico e corpo verde-turquesa não batem com peixe-porco.',alternativa:'peixe-papagaio (Scaridae)'}));

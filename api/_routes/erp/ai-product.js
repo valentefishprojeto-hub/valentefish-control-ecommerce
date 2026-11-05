@@ -1,12 +1,12 @@
 import OpenAI from 'openai';
 import {draftProduct} from '../../_lib/ai/productDraft.js';
-import {body,fail,method} from '../../_lib/http.js';
+import {appUrl,body,fail,method} from '../../_lib/http.js';
 
 export default async function handler(req,res){
   if(!method(req,res,['POST'])) return;
   try{
     const input=body(req);
-    const draft=await draftProduct({images:input.images,notes:input.notes});
+    const draft=await draftProduct({images:input.images,notes:input.notes,env:{...process.env,APP_URL:appUrl(req)}});
     res.status(200).json({draft});
   }catch(error){
     if(error instanceof OpenAI.RateLimitError){

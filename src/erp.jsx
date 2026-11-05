@@ -67,18 +67,17 @@ function ProductForm({categories,initial,busy,onSubmit,notify}){
   }));
   const [media,setMedia]=useState(()=>initial?.media?.length?initial.media:initial?.imageUrl?[{url:initial.imageUrl,kind:'image',name:'capa'}]:[]);
   const [uploading,setUploading]=useState(false);
-  const [ai,setAi]=useState({notes:'',busy:false,result:null});
+  const [ai,setAi]=useState({notes:'',busy:false,result:null,error:''});
   const images=media.filter(item=>item.kind!=='video').map(item=>item.url);
   const fillWithAi=async()=>{
-    setAi(current=>({...current,busy:true,result:null}));
+    setAi(current=>({...current,busy:true,result:null,error:''}));
     try{
-      const {draft}=await api('/api/erp/ai-product',{method:'POST',body:{images,notes:ai.notes}});
+      const {draft}=await api('/api/erp/ai-product',{method:'POST',body:{images,notes:ai.notes},timeoutMs:115000});
       setForm(current=>({...current,name:draft.name||current.name,description:draft.description||current.description,
         badge:draft.badge||current.badge,categoryId:draft.categoryId||current.categoryId}));
       setAi(current=>({...current,busy:false,result:draft}));
     }catch(error){
-      setAi(current=>({...current,busy:false}));
-      notify(error.message||'A IA não conseguiu preencher agora');
+      setAi(current=>({...current,busy:false,error:error.message||'A IA não conseguiu preencher agora'}));
     }
   };
   const update=event=>{
@@ -143,6 +142,7 @@ function ProductForm({categories,initial,busy,onSubmit,notify}){
       <button type="button" className="erp-ghost" disabled={!images.length||ai.busy||uploading||busy} onClick={fillWithAi}>
         <Sparkles size={16}/> {ai.busy?'A IA está analisando as fotos…':images.length?'Preencher com IA':'Suba ao menos uma foto para usar a IA'}
       </button>
+      {ai.error&&<p className="commerce-error" role="alert">{ai.error}</p>}
       {ai.result&&<div className={`erp-ai-result ${ai.result.confidence}`}>
         <p><b>{ai.result.identification||ai.result.name}</b> • confiança {ai.result.confidence==='media'?'média':ai.result.confidence} • {ai.result.verified===true?'conferência independente: compatível':ai.result.verified===false?'conferência independente: divergente':'sem conferência'}</p>
         {ai.result.related?.length>0&&<p>Mesmo animal de: {ai.result.related.join(', ')}</p>}

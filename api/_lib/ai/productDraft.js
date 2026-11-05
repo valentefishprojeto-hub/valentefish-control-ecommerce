@@ -148,7 +148,16 @@ export function safeSources(list){
 }
 
 export async function draftProduct({images,notes='',sql,env=process.env,client,catalog}={}){
-  const urls=(Array.isArray(images)?images:[]).filter(u=>typeof u==='string'&&/^https:\/\//.test(u)).slice(0,MAX_IMAGES);
+  const urls=(Array.isArray(images)?images:[]).map(value=>{
+    if(typeof value!=='string') return null;
+    if(/^https:\/\//i.test(value)) return value;
+    if(!/^\/(?![\\/])/.test(value)||!env.APP_URL) return null;
+    try{
+      const base=new URL(env.APP_URL);
+      const url=new URL(value,base);
+      return base.protocol==='https:'&&url.origin===base.origin?url.href:null;
+    }catch{return null;}
+  }).filter(Boolean).slice(0,MAX_IMAGES);
   if(!urls.length) throw fail('Envie pelo menos uma foto do produto',422);
   if(!client&&!env.OPENAI_API_KEY) throw fail('IA não configurada: falta OPENAI_API_KEY na Vercel',503);
   const data=catalog||await loadCatalog(sql);
