@@ -173,8 +173,14 @@ export async function draftProduct({images,notes='',sql,env=process.env,client,c
   try{check=parse(await openai.responses.create(buildCheckRequest({images:urls,draft,env})));}
   catch{check=null;} // a conferência é complementar: se falhar, o rascunho segue marcado para revisão
 
+  const category=data.categories.find(c=>c.slug===draft.categoria)||null;
+  const scientific=String(draft.identificacao||'').trim().toLowerCase();
+  const approvedSpecies=(data.memory||[]).filter(m=>String(m.scientific_name).trim().toLowerCase()===scientific);
   let confidence=draft.confianca;
-  const notesOut=[String(draft.observacoes||'').trim()];
+  // A confirmação da memória é calculada do banco, nunca aceita da resposta do modelo.
+  const modelNotes=String(draft.observacoes||'').trim().split(/(?<=[.!?])\s+/)
+    .filter(sentence=>!/\bmem[oó]ria\b/i.test(sentence)).join(' ');
+  const notesOut=[modelNotes];
   if(check&&!check.compativel){
     confidence='baixa';
     notesOut.unshift(`A conferência independente encontrou divergências: ${check.divergencias}${check.alternativa?` Pode ser: ${check.alternativa}.`:''}`);
@@ -182,12 +188,14 @@ export async function draftProduct({images,notes='',sql,env=process.env,client,c
     notesOut.unshift('Não foi possível fazer a conferência independente; revise a identificação.');
     if(confidence==='alta') confidence='media';
   }
+  if(['peixes','corais','invertebrados'].includes(category?.slug)&&!approvedSpecies.length){
+    if(confidence==='alta') confidence='media';
+    notesOut.unshift('Identificação sem confirmação na memória da loja; revise espécie e nome antes de salvar.');
+  }
 
-  const category=data.categories.find(c=>c.slug===draft.categoria)||null;
   // Só nomes que existem mesmo no banco (a IA não pode inventar "relacionados").
   const known=new Map((data.names||[]).map(p=>[p.name.toLowerCase(),p.name]));
-  const scientific=String(draft.identificacao||'').trim().toLowerCase();
-  const approvedRelated=new Set((data.memory||[]).filter(m=>String(m.scientific_name).trim().toLowerCase()===scientific).map(m=>m.product_name.toLowerCase()));
+  const approvedRelated=new Set(approvedSpecies.map(m=>m.product_name.toLowerCase()));
   const related=[...new Set((draft.relacionados||[]).map(n=>known.get(String(n).trim().toLowerCase())).filter(n=>n&&approvedRelated.has(n.toLowerCase())))];
   const unconfirmed=(draft.relacionados||[]).filter(n=>known.has(String(n).trim().toLowerCase())&&!approvedRelated.has(String(n).trim().toLowerCase()));
   return {

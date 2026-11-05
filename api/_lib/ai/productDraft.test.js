@@ -22,7 +22,7 @@ test('rascunho: pesquisa na web, manda fotos + catálogo e confere numa segunda 
   const client=fakeClient(reply(draftJson(),{annotations:[{type:'url_citation',url:'https://reeflifesurvey.com/x'}]}),reply(ok));
   const draft=await draftProduct({images:['https://x.supabase.co/a.jpg','http://inseguro/b.jpg','https://x.supabase.co/c.jpg'],notes:'chegou hoje',client,catalog});
   assert.deepEqual({name:draft.name,categoryId:draft.categoryId,confidence:draft.confidence,verified:draft.verified,identification:draft.identification},
-    {name:'Tang Amarelo',categoryId:'c1',confidence:'alta',verified:true,identification:'Zebrasoma flavescens'});
+    {name:'Tang Amarelo',categoryId:'c1',confidence:'media',verified:true,identification:'Zebrasoma flavescens'});
   assert.deepEqual(draft.sources,[{url:'https://www.fishbase.se/summary/6015',host:'fishbase.se'},{url:'https://reeflifesurvey.com/x',host:'reeflifesurvey.com'}],'fontes do modelo + citações da busca');
   const [first,second]=client.calls;
   assert.deepEqual(first.tools,[{type:'web_search'}]);
@@ -52,6 +52,20 @@ test('cor semelhante não associa espécies diferentes sem memória aprovada',as
   const draft=await draftProduct({images:['https://a/b.jpg'],client,catalog});
   assert.deepEqual(draft.related,[]);
   assert.match(draft.notes,/ainda não confirmada/);
+});
+
+test('espécie animal sem confirmação na memória não recebe confiança alta',async()=>{
+  const client=fakeClient(reply(draftJson({identificacao:'Zebrasoma xanthurum',nome:'Tang-bico Amarelo'})),reply(ok));
+  const draft=await draftProduct({images:['https://loja.test/fish.png'],client,catalog});
+  assert.equal(draft.confidence,'media');
+  assert.match(draft.notes,/Identificação sem confirmação na memória da loja/);
+});
+
+test('nota da IA não pode inventar confirmação da memória da loja',async()=>{
+  const client=fakeClient(reply(draftJson({observacoes:'Nome popular confirmado pela memória da loja como nome do RJ. Verifique a foto.'})),reply(ok));
+  const draft=await draftProduct({images:['https://loja.test/fish.png'],client,catalog});
+  assert.doesNotMatch(draft.notes,/confirmado pela memória da loja/);
+  assert.match(draft.notes,/Verifique a foto/);
 });
 test('fotos reais do catálogo entram na análise e na conferência em ordem',async()=>{
   const files=['product-fish-yellow.png','product-fish-clown.png'];
@@ -114,7 +128,7 @@ test('rascunho: lê categorias e exemplos do banco real',async t=>{
   const client=fakeClient(params=>reply(draftJson({categoria:params.text.format.schema.properties.categoria.enum[0],observacoes:'conferir espécie'})),reply(ok));
   const draft=await draftProduct({images:['https://a/b.jpg'],sql,client});
   assert.ok(draft.categoryId,'categoria do banco');
-  assert.equal(draft.notes,'conferir espécie');
+  assert.match(draft.notes,/Identificação sem confirmação na memória da loja.*conferir espécie/);
 });
 test('memória aprovada persiste nomes populares e entra no contexto da foto',async t=>{
   const database=await testDatabase();t.after(()=>database.close());const {sql}=database;
@@ -122,7 +136,8 @@ test('memória aprovada persiste nomes populares e entra no contexto da foto',as
   await sql`insert into public.animal_memory(product_id,scientific_name,popular_names,confirmed_notes)
     values (${product.id},'Zebrasoma flavescens',${['tang amarelo','cirurgião amarelo']},'Nome confirmado pela equipe')`;
   const client=fakeClient(reply(draftJson()),reply(ok));
-  await draftProduct({images:['https://a/b.jpg'],sql,client});
+  const draft=await draftProduct({images:['https://a/b.jpg'],sql,client});
+  assert.equal(draft.confidence,'alta');
   assert.match(client.calls[0].instructions,/tang amarelo, cirurgião amarelo/);
   assert.match(client.calls[0].instructions,/Nome confirmado pela equipe/);
 });
