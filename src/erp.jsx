@@ -5,7 +5,7 @@ import {api,formatPrice} from './commerce';
 import {getSupabase} from './supabaseClient';
 import {BrandLockup} from './brand';
 import {FEATURED_LIMIT,moneyInput} from './catalog';
-import InstagramMarketing from './InstagramMarketing';
+import InstagramBot from './InstagramBot';
 
 const groups=[
   ['Operação',[
@@ -20,7 +20,7 @@ const groups=[
     ['financeiro','Financeiro',Wallet,'Receitas e despesas']
   ]],
   ['Marketing',[
-    ['instagram','Instagram',AtSign,'Modelos, programação automática e histórico de publicações']
+    ['instagram','Bot do Instagram',AtSign,'Conversas, interações e atendimento humano']
   ]],
   ['Digital',[
     ['ecommerce','E-commerce',Globe,'Buscas, carrinhos, origem e comportamento']
@@ -335,7 +335,7 @@ export function ErpApp({notify}){
         </div>
       </header>
 
-      {page==='instagram'&&<InstagramMarketing notify={notify}/>}
+      {page==='instagram'&&<InstagramBot notify={notify}/>}
 
       {page==='painel'&&dashboard&&<>
         <div className="erp-kpis">

@@ -100,11 +100,11 @@ O teste `runtime.test.js` inicia o runtime publicado `@vercel/node` com helpers 
 
 ### Atendimento, pausa e segurança
 
-`atendente`, `humano` e `pessoa` encaminham sem LLM. Saúde/dosagem e fotos também encaminham. Outros anexos pedem texto. Handoff cria um registro pendente, pausa a conversa e oferece o WhatsApp com UTM. A equipe acompanha o Direct e os registros de `ig_handoffs`; não há painel novo nem notificação externa.
+`atendente`, `humano` e `pessoa` encaminham sem LLM. Saúde/dosagem e fotos também encaminham. Outros anexos pedem texto. Handoff cria um registro pendente, pausa a conversa e oferece o WhatsApp com UTM. A equipe acompanha o Direct pelo painel **Bot do Instagram** em `/admin/instagram`: ele mostra até 50 conversas recentes, as últimas 100 mensagens de cada uma e os encaminhamentos pendentes. Só administradores autenticados podem ler o histórico ou pausar/retomar uma conversa. O nome de usuário é buscado na Meta quando a conversa é aberta; se a API não o fornecer, a tela mostra o ID do remetente. A resposta manual continua sendo feita no app do Instagram.
 
 Echo de `mid` enviado pelo bot é ignorado. Echo desconhecido durante envio suspende novas partes enquanto é reconciliado, para não competir com o atendente. Uma intervenção humana não pode ser sobrescrita por resultado tardio do LLM. Após a pausa expirar, a próxima mensagem elegível pode reabrir o bot. `closed` permanece silencioso até intervenção manual.
 
-Para pausar tudo: `IG_BOT_ENABLED=false` e publique a configuração. As mensagens continuam sendo registradas. Para controlar uma conversa via conexão administrativa segura, use parâmetros SQL, nunca e-mail/ID concatenados:
+Para pausar tudo: `IG_BOT_ENABLED=false` e publique a configuração. As mensagens continuam sendo registradas. Para pausar ou retomar uma conversa, use o botão no painel. A pausa manual dura `IG_HUMAN_PAUSE_HOURS` (12 horas por padrão); depois desse prazo, a próxima mensagem pode reativar o bot. O painel de publicações automáticas foi retirado do menu; programações já ativas continuam executando até serem pausadas pela configuração/rota de marketing. Para operação direta por SQL em uma conexão administrativa segura, use parâmetros, nunca e-mail/ID concatenados:
 
 ```sql
 -- Pausa manual por 12 horas

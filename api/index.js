@@ -22,6 +22,7 @@ import quote from './_routes/shipping/quote.js';
 import tracking from './_routes/shipping/tracking.js';
 import mercadoPago from './_routes/webhooks/mercado-pago.js';
 import instagram from './_routes/webhooks/instagram.js';
+import instagramInbox from './_routes/instagram/inbox.js';
 import instagramMarketing,{cron as instagramPublisher,maintenance as instagramMaintenance} from './_routes/marketing/instagram.js';
 
 const routes={
@@ -34,6 +35,7 @@ const routes={
   products,
   track,
   'webhooks/instagram':instagram,
+  'instagram/inbox':instagramInbox,
   'marketing/instagram':instagramMarketing,
   'marketing/instagram/run':instagramPublisher,
   'instagram/maintenance':instagramMaintenance,
