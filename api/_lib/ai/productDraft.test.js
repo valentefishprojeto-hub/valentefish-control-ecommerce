@@ -36,6 +36,22 @@ test('rascunho: pesquisa na web, manda fotos + catálogo e confere numa segunda 
   assert.equal(second.tools,undefined);
 });
 
+test('nome escrito nas dicas prevalece sobre o nome sugerido pela IA',async()=>{
+  for(const line of ['Nome: Cirurgião Amarelo RJ','Nome do anúncio: Cirurgião Amarelo RJ','O nome é Cirurgião Amarelo RJ']){
+    const client=fakeClient(reply(draftJson({nome:'Tang Amarelo'})),reply(ok));
+    const draft=await draftProduct({images:['https://loja.test/fish.png'],notes:`${line}\nTamanho M`,client,catalog});
+    assert.equal(draft.name,'Cirurgião Amarelo RJ');
+    assert.match(client.calls[0].instructions,/nome indicado nas dicas/);
+    assert.match(client.calls[0].input[0].content.at(-1).text,/Cirurgião Amarelo RJ/);
+  }
+});
+
+test('nome científico nas dicas não substitui o nome do anúncio',async()=>{
+  const client=fakeClient(reply(draftJson()),reply(ok));
+  const draft=await draftProduct({images:['https://loja.test/fish.png'],notes:'Nome científico: Zebrasoma flavescens',client,catalog});
+  assert.equal(draft.name,'Tang Amarelo');
+});
+
 test('rascunho: reconhece o mesmo animal em outra cor e só aceita produtos que existem no banco',async()=>{
   const client=fakeClient(reply(draftJson({nome:'Coral Dendronephthya Amarelo',identificacao:'Dendronephthya sp.',categoria:'corais',relacionados:['coral dendronephthya rosa','Produto Inventado']})),reply(ok));
   const draft=await draftProduct({images:['https://a/b.jpg'],client,catalog});

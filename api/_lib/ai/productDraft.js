@@ -25,7 +25,8 @@ const METHOD=`Como identificar (siga na ordem, antes de escrever):
 4. Escolha o candidato cujos traços batem com a foto. Se nenhum bater bem, desça para o nível que você consegue afirmar (ex.: "peixe-papagaio (Scaridae)") e use confiança baixa.
 5. Use nos fatos da descrição (tamanho, temperamento, cuidados) só o que as fontes confirmam, e liste as URLs consultadas em "fontes".
 6. O campo "nome" é o nome popular em português, como o cliente procura na loja (ex.: "Peixe-palhaço Ocellaris", "Coral Cérebro Verde", "Tang Amarelo"), nunca só o nome científico. O nome científico vai em "identificacao" e na descrição. Para nomes falados no RJ, priorize os que a equipe marcou na memória como regionais. Se não houver nome regional confirmado, sugira em "observacoes" um nome possível para revisão, com fonte; não o afirme como uso regional estabelecido.
-7. Confira a lista de produtos já cadastrados. Cor diferente não prova que é a mesma espécie, sobretudo para corais. Reaproveite o nome-base e fatos de um animal da memória somente quando os traços diagnósticos da foto e o nome científico confirmado forem compatíveis. Se a memória só confirmar gênero ou família, não eleve a identificação a espécie. Liste em "relacionados" apenas produtos cujo vínculo seja sustentado; se houver dúvida, deixe a relação em "observacoes" para revisão. Para variações confirmadas da mesma espécie, preserve o nome-base aprovado e troque apenas o descritor de cor/variação.`;
+7. Confira a lista de produtos já cadastrados. Cor diferente não prova que é a mesma espécie, sobretudo para corais. Reaproveite o nome-base e fatos de um animal da memória somente quando os traços diagnósticos da foto e o nome científico confirmado forem compatíveis. Se a memória só confirmar gênero ou família, não eleve a identificação a espécie. Liste em "relacionados" apenas produtos cujo vínculo seja sustentado; se houver dúvida, deixe a relação em "observacoes" para revisão. Para variações confirmadas da mesma espécie, preserve o nome-base aprovado e troque apenas o descritor de cor/variação.
+8. Se houver um nome indicado nas dicas como "Nome: ..." ou "Nome do anúncio: ...", use exatamente esse nome no campo "nome". O nome indicado é um rótulo da loja, não prova da identificação científica; se houver divergência com a foto, avise em "observacoes".`;
 
 const CATEGORY={type:'string',description:'Slug da categoria mais adequada'};
 const DRAFT_SCHEMA={
@@ -91,6 +92,15 @@ function catalogText({categories,products,names=[],memory=[]}){
 const imageParts=images=>images.map(url=>({type:'input_image',image_url:url,detail:'high'}));
 const model=env=>env.AI_PRODUCT_MODEL||DEFAULT_MODEL;
 
+function adNameFromNotes(notes){
+  let name='';
+  for(const line of String(notes).split(/\r?\n/)){
+    const match=line.match(/^\s*(?:o\s+)?nome(?:\s+do\s+(?:an[uú]ncio|produto))?\s*(?:[:=]|é)\s*(.+?)\s*$/i);
+    if(match) name=match[1].trim();
+  }
+  return name;
+}
+
 export function buildRequest({images,notes,catalog,env=process.env}){
   return {
     model:model(env),
@@ -148,6 +158,8 @@ export function safeSources(list){
 }
 
 export async function draftProduct({images,notes='',sql,env=process.env,client,catalog}={}){
+  const userNotes=String(notes).slice(0,1000);
+  const requestedName=adNameFromNotes(userNotes);
   const urls=(Array.isArray(images)?images:[]).map(value=>{
     if(typeof value!=='string') return null;
     if(/^https:\/\//i.test(value)) return value;
@@ -165,7 +177,7 @@ export async function draftProduct({images,notes='',sql,env=process.env,client,c
   // Duas chamadas em sequência dentro do limite de 120 s da função: sem retentativa automática.
   const openai=client||new OpenAI({apiKey:env.OPENAI_API_KEY,timeout:55000,maxRetries:0});
 
-  const response=await openai.responses.create(buildRequest({images:urls,notes:String(notes).slice(0,1000),catalog:data,env}));
+  const response=await openai.responses.create(buildRequest({images:urls,notes:userNotes,catalog:data,env}));
   const draft=parse(response);
   const sources=safeSources([...(draft.fontes||[]),...citedUrls(response)]);
 
@@ -199,7 +211,7 @@ export async function draftProduct({images,notes='',sql,env=process.env,client,c
   const related=[...new Set((draft.relacionados||[]).map(n=>known.get(String(n).trim().toLowerCase())).filter(n=>n&&approvedRelated.has(n.toLowerCase())))];
   const unconfirmed=(draft.relacionados||[]).filter(n=>known.has(String(n).trim().toLowerCase())&&!approvedRelated.has(String(n).trim().toLowerCase()));
   return {
-    name:String(draft.nome||'').trim(),
+    name:requestedName||String(draft.nome||'').trim(),
     categoryId:category?.id||null,
     categorySlug:category?.slug||null,
     description:String(draft.descricao||'').trim(),

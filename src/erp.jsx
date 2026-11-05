@@ -138,7 +138,8 @@ function ProductForm({categories,initial,busy,onSubmit,notify}){
     </div>
     <div className="erp-ai">
       <div className="erp-media-head"><b><Sparkles size={16}/> Preencher com IA</b><small>A IA olha as fotos e o catálogo atual e preenche nome, categoria, descrição e selo. Preço e estoque continuam com você. Revise antes de publicar.</small></div>
-      <textarea rows="2" value={ai.notes} onChange={event=>setAi(current=>({...current,notes:event.target.value}))} placeholder="Opcional: dicas para a IA (ex.: “tamanho M, veio de Bali”, “ração 120 g”)" maxLength={1000}/>
+      <textarea rows="2" value={ai.notes} onChange={event=>setAi(current=>({...current,notes:event.target.value}))} placeholder={'Dicas para a IA (ex.: Nome: Peixe-palhaço Ocellaris\nTamanho M, veio de Bali)'} maxLength={1000}/>
+      <small>Para definir o nome do anúncio, escreva "Nome: ..." em uma linha das dicas.</small>
       <button type="button" className="erp-ghost" disabled={!images.length||ai.busy||uploading||busy} onClick={fillWithAi}>
         <Sparkles size={16}/> {ai.busy?'A IA está analisando as fotos…':images.length?'Preencher com IA':'Suba ao menos uma foto para usar a IA'}
       </button>
