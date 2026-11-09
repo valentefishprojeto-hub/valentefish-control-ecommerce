@@ -3,7 +3,19 @@ import {draftProduct} from '../../_lib/ai/productDraft.js';
 import {appUrl,body,fail,method} from '../../_lib/http.js';
 
 export default async function handler(req,res){
-  if(!method(req,res,['POST'])) return;
+  if(!method(req,res,['GET','POST'])) return;
+  if(req.method==='GET'){
+    const key=process.env.OPENAI_API_KEY||'';
+    const trimmed=key.trim();
+    const format={present:!!key,surroundingWhitespace:key!==trimmed,wrappedInQuotes:/^['"].*['"]$/.test(trimmed),assignmentPrefix:/^OPENAI_API_KEY\s*=/.test(trimmed),lineBreak:/[\r\n]/.test(key),expectedPrefix:/^sk-/.test(trimmed)};
+    if(!key) return res.status(200).json({format,providerStatus:null,providerCode:'missing_key'});
+    try{
+      await new OpenAI({apiKey:key,timeout:10000,maxRetries:0}).models.list();
+      return res.status(200).json({format,providerStatus:200,providerCode:null});
+    }catch(error){
+      return res.status(200).json({format,providerStatus:error.status||null,providerCode:error.code||error.name||'unknown'});
+    }
+  }
   try{
     const input=body(req);
     const draft=await draftProduct({images:input.images,notes:input.notes,env:{...process.env,APP_URL:appUrl(req)}});
