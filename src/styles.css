@@ -331,13 +331,14 @@ body.cart-open .store-whatsapp{opacity:0;pointer-events:none}
   .erp-filters{overflow-x:auto;flex-wrap:nowrap;width:100%}
   .erp-filters button{flex:none}
   .erp-media-drop{padding:16px 10px}
-  /* No celular o fluxo começa pela câmera: fotos → IA → revisar campos */
+  /* No celular, mantenha a escolha de usar IA antes dos campos. */
   .erp-form{display:flex;flex-direction:column;align-items:stretch;gap:16px}
   .erp-form>*{width:100%;justify-self:stretch;margin-left:0;margin-right:0}
-  .erp-form>.erp-media{order:-2}
-  .erp-form>.erp-ai{order:-1}
   .erp-actions button{width:100%;justify-content:center}
 }
+.erp-ai-toggle{display:inline-flex;align-items:center;justify-content:center;gap:8px;justify-self:start;border:1px solid #9dc3d4;background:#f3fbfd;color:#075f86;border-radius:10px;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer}
+.erp-ai-toggle[aria-expanded="true"]{background:#e5f5fa;border-color:#459db8}
+.erp-ai-toggle:disabled{opacity:.6;cursor:not-allowed}
 .erp-ai{display:grid;gap:10px;border:1px solid #cfe6ec;background:linear-gradient(135deg,#f3fbfd,#f8f5ff);border-radius:14px;padding:14px}
 .erp-ai .erp-media-head b{display:flex;align-items:center;gap:6px}
 .erp-ai textarea{border:1px solid #d5e4e6;border-radius:10px;padding:10px 12px;background:#fff;width:100%;font:inherit;resize:vertical}

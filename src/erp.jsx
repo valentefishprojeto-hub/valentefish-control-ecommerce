@@ -67,6 +67,7 @@ function ProductForm({categories,initial,busy,onSubmit,notify}){
   }));
   const [media,setMedia]=useState(()=>initial?.media?.length?initial.media:initial?.imageUrl?[{url:initial.imageUrl,kind:'image',name:'capa'}]:[]);
   const [uploading,setUploading]=useState(false);
+  const [aiEnabled,setAiEnabled]=useState(false);
   const [ai,setAi]=useState({notes:'',busy:false,result:null,error:''});
   const images=media.filter(item=>item.kind!=='video').map(item=>item.url);
   const fillWithAi=async()=>{
@@ -105,18 +106,8 @@ function ProductForm({categories,initial,busy,onSubmit,notify}){
       setUploading(false);
     }
   };
-  return <form className="erp-form" onSubmit={event=>{event.preventDefault();onSubmit({...form,media,...(initial?{id:initial.id}:{})})}}>
-    <div className="erp-form-grid">
-      <Field label="Nome"><input name="name" value={form.name} onChange={update} required/></Field>
-      <Field label="SKU (opcional)"><input name="sku" value={form.sku} onChange={update} placeholder="Ex.: VF-PEI-010"/></Field>
-      <Field label="Categoria"><select name="categoryId" value={form.categoryId} onChange={update} required>{categories.map(category=><option key={category.id} value={category.id}>{category.name}</option>)}</select></Field>
-      <Field label="Preço"><input name="price" value={form.price} onChange={update} placeholder="289,00" required/></Field>
-      <Field label="Estoque inicial"><input name="stockQuantity" type="number" min="0" value={form.stockQuantity} onChange={update}/></Field>
-      <Field label="Selo"><input name="badge" value={form.badge} onChange={update} placeholder="Quarentenado"/></Field>
-      <Field label="Descrição"><textarea name="description" rows="4" value={form.description} onChange={update}/></Field>
-    </div>
-    <div className="erp-media">
-      <div className="erp-media-head"><b>Imagens e vídeos</b><small>Pode enviar vários arquivos. A primeira imagem vira a capa da loja.</small></div>
+  const mediaEditor=<div className="erp-media">
+      <div className="erp-media-head"><b>{aiEnabled?'Fotos para análise da IA':'Imagens e vídeos'}</b><small>Pode enviar vários arquivos. A primeira imagem vira a capa da loja.</small></div>
       <div className="erp-media-sources">
         {/* capture abre a câmera traseira direto no celular; no computador cai no seletor de arquivos */}
         <label className="erp-media-drop">
@@ -135,9 +126,14 @@ function ProductForm({categories,initial,busy,onSubmit,notify}){
         <small>{item.kind==='video'?'Vídeo':'Imagem'}{index===0?' • capa':''}</small>
         <button type="button" className="erp-danger" onClick={()=>setMedia(current=>current.filter((_,i)=>i!==index))} aria-label="Remover"><Trash2 size={14}/></button>
       </li>)}</ul>}
-    </div>
-    <div className="erp-ai">
-      <div className="erp-media-head"><b><Sparkles size={16}/> Preencher com IA</b><small>A IA olha as fotos e o catálogo atual e preenche nome, categoria, descrição e selo. Preço e estoque continuam com você. Revise antes de publicar.</small></div>
+    </div>;
+  return <form className="erp-form" onSubmit={event=>{event.preventDefault();onSubmit({...form,media,...(initial?{id:initial.id}:{})})}}>
+    <button type="button" className="erp-ai-toggle" aria-expanded={aiEnabled} onClick={()=>setAiEnabled(value=>!value)} disabled={ai.busy}>
+      <Sparkles size={18}/><span>{aiEnabled?'Ocultar ajuda da IA':'Usar IA para preencher'}</span>
+    </button>
+    {aiEnabled&&<div className="erp-ai">
+      <div className="erp-media-head"><b><Sparkles size={16}/> Ajuda da IA</b><small>Use quando tiver muitos produtos ou precisar de ajuda. A IA sugere nome, categoria, descrição e selo. Revise antes de publicar; preço e estoque são preenchidos por você.</small></div>
+      {mediaEditor}
       <textarea rows="2" value={ai.notes} onChange={event=>setAi(current=>({...current,notes:event.target.value}))} placeholder={'Dicas para a IA (ex.: Nome: Peixe-palhaço Ocellaris\nTamanho M, veio de Bali)'} maxLength={1000}/>
       <small>Para definir o nome do anúncio, escreva "Nome: ..." em uma linha das dicas.</small>
       <button type="button" className="erp-ghost" disabled={!images.length||ai.busy||uploading||busy} onClick={fillWithAi}>
@@ -151,7 +147,17 @@ function ProductForm({categories,initial,busy,onSubmit,notify}){
         {ai.result.observed&&<p><small>O que a IA viu na foto: {ai.result.observed}</small></p>}
         {ai.result.sources?.length>0&&<p><small>Fontes: {ai.result.sources.filter(source=>/^https?:\/\//.test(source?.url||'')).map((source,i)=><React.Fragment key={source.url}>{i>0&&' · '}<a href={source.url} target="_blank" rel="noopener noreferrer">{source.host}</a></React.Fragment>)}</small></p>}
       </div>}
+    </div>}
+    <div className="erp-form-grid">
+      <Field label="Nome"><input name="name" value={form.name} onChange={update} required/></Field>
+      <Field label="SKU (opcional)"><input name="sku" value={form.sku} onChange={update} placeholder="Ex.: VF-PEI-010"/></Field>
+      <Field label="Categoria"><select name="categoryId" value={form.categoryId} onChange={update} required>{categories.map(category=><option key={category.id} value={category.id}>{category.name}</option>)}</select></Field>
+      <Field label="Preço"><input name="price" value={form.price} onChange={update} placeholder="289,00" required/></Field>
+      <Field label="Estoque inicial"><input name="stockQuantity" type="number" min="0" value={form.stockQuantity} onChange={update}/></Field>
+      <Field label="Selo"><input name="badge" value={form.badge} onChange={update} placeholder="Quarentenado"/></Field>
+      <Field label="Descrição"><textarea name="description" rows="4" value={form.description} onChange={update}/></Field>
     </div>
+    {!aiEnabled&&mediaEditor}
     <div className="erp-checks">
       <label><input name="featured" type="checkbox" checked={form.featured} onChange={update}/> Destaque na home (máx. {FEATURED_LIMIT})</label>
       <label><input name="active" type="checkbox" checked={form.active} onChange={update}/> Visível no e-commerce</label>

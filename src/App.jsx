@@ -76,19 +76,6 @@ function CinematicIntro(){
 }
 
 
-const storeProducts=[
-  {name:'Peixe-palhaço Premium',category:'Peixes',price:'R$ 289,00',image:'/store/product-fish-clown.png',tag:'Quarentenado'},
-  {name:'Yellow Tang',category:'Peixes',price:'R$ 849,00',image:'/store/product-fish-yellow.png',tag:'Quarentenado'},
-  {name:'Coral Hammer Green',category:'Corais',price:'R$ 379,00',image:'/store/product-coral.png',tag:'Cultivo selecionado'},
-  {name:'Flatworm Rx Blue Vet',category:'Tratamentos',price:'R$ 189,90',image:'/store/product-flatworm.webp',tag:'Mais vendido'},
-  {name:'Green Cyano Rx Blue Life',category:'Tratamentos',price:'R$ 219,90',image:'/store/product-green-cyano.webp',tag:'Novidade'},
-  {name:'Red Cyano Rx Blue Life',category:'Tratamentos',price:'R$ 219,90',image:'/store/product-red-cyano.webp'},
-  {name:'Alga Nori Green 140g',category:'Rações',price:'R$ 74,90',image:'/store/product-nori.webp'},
-  {name:'Vitalis Marine Grazer 240g',category:'Rações',price:'R$ 164,90',image:'/store/product-vitalis-240.webp',tag:'Recomendado'},
-  {name:'Vitalis Marine Grazer 120g',category:'Rações',price:'R$ 99,90',image:'/store/product-vitalis-120.webp'},
-  {name:'Carcaça Slim para Filtro',category:'Filtragem',price:'R$ 129,90',image:'/store/product-filter.jpg'},
-  {name:'Osmose Reversa 4 Estágios',category:'Filtragem',price:'R$ 1.249,90',image:'/store/product-osmosis.jpg',tag:'Envio nacional'}
-];
 const valenteStories=[
   ['tzrZEFUF21Q','01','Anêmonas','Qual é a sua preferida?'],
   ['Ua5ZTRYOTUQ','02','Scolymia','Bleeding Apple'],
@@ -435,7 +422,8 @@ function CategoryMenu({open,categories,onOpen,onClose}){
 function Shop({notify}){
   const [query,setQuery]=useState('');
   const [routePath,setRoutePath]=useState(window.location.pathname);
-  const [catalogProducts,setCatalogProducts]=useState(storeProducts);
+  const [catalogProducts,setCatalogProducts]=useState([]);
+  const [catalogStatus,setCatalogStatus]=useState('loading');
   const [catalogCategories,setCatalogCategories]=useState(fallbackCategories);
   const [categoryMenuOpen,setCategoryMenuOpen]=useState(false);
   const [cartItems,setCartItems]=useState(loadCart);
@@ -467,9 +455,10 @@ function Shop({notify}){
   useEffect(()=>{const onPopState=()=>{setRoutePath(window.location.pathname);window.scrollTo(0,0)};window.addEventListener('popstate',onPopState);return()=>window.removeEventListener('popstate',onPopState)},[]);
   useEffect(()=>{
     loadCatalog().then(data=>{
-      if(data.products?.length) setCatalogProducts(data.products);
+      setCatalogProducts(data.products||[]);
       if(data.categories?.length) setCatalogCategories(data.categories);
-    }).catch(()=>{});
+      setCatalogStatus('ready');
+    }).catch(()=>setCatalogStatus('error'));
   },[]);
   useEffect(()=>{
     track('page_view');
@@ -640,7 +629,7 @@ function Shop({notify}){
 
     <section className="store-section products-section conversion-products" id="produtos">
       <div className="section-heading"><div><span className="eyebrow">ESCOLHAS DA SEMANA</span><h2>Produtos em destaque</h2><p>Seleção pronta para você encontrar, escolher e comprar sem complicação.</p></div><button onClick={()=>navigateStore('produtos')}>Ver todos os produtos <ArrowRight size={17}/></button></div>
-      <div className="store-products">{featuredProducts.map(item=><ProductCard key={item.name} item={item} onOpen={openProduct} onAdd={addToCart} onBuy={buyNow}/>)}</div>
+      {featuredProducts.length?<div className="store-products">{featuredProducts.map(item=><ProductCard key={item.name} item={item} onOpen={openProduct} onAdd={addToCart} onBuy={buyNow}/>)}</div>:<p className="erp-meta">{catalogStatus==='loading'?'Carregando produtos…':catalogStatus==='error'?'Não foi possível carregar os produtos agora.':'Nenhum produto disponível no momento.'}</p>}
       <button className="conversion-catalog-cta" onClick={()=>navigateStore('produtos')}>Explorar catálogo completo <ArrowRight size={18}/></button>
     </section>
 
@@ -675,7 +664,7 @@ function Shop({notify}){
 
     {(storePage==='produtos'||storePage==='categoria')&&<section key={routePath} className="store-page-hero" id="produtos">
       <div className="section-heading"><div><span className="eyebrow">{storePage==='categoria'?'CATEGORIAS':'CATÁLOGO VALENTE FISH'}</span><h2>{category==='Todos'?'Todos os produtos':category}</h2><p>{activeCategory?.description||'Seleção Valente Fish com estoque integrado e atendimento especializado.'}</p></div><span className="stock-live"><i/> Estoque sincronizado</span></div>
-      {products.length?<div className="store-products">{products.map(item=><ProductCard key={item.name} item={item} onOpen={openProduct} onAdd={addToCart} onBuy={buyNow}/>)}</div>:<div className="empty-products"><Search size={30}/><h3>Nenhum produto encontrado</h3><p>Tente buscar por outro termo ou categoria.</p><button onClick={()=>{setQuery('');navigateStore('produtos')}}>Limpar filtros</button></div>}
+      {products.length?<div className="store-products">{products.map(item=><ProductCard key={item.name} item={item} onOpen={openProduct} onAdd={addToCart} onBuy={buyNow}/>)}</div>:<div className="empty-products"><Search size={30}/><h3>{catalogStatus==='loading'?'Carregando produtos…':catalogStatus==='error'?'Catálogo indisponível':'Nenhum produto encontrado'}</h3><p>{catalogStatus==='loading'?'Aguarde um instante.':catalogStatus==='error'?'Tente novamente em alguns minutos.':'Tente buscar por outro termo ou categoria.'}</p>{catalogStatus==='ready'&&<button onClick={()=>{setQuery('');navigateStore('produtos')}}>Limpar filtros</button>}</div>}
     </section>}
 
     {storePage==='produto'&&selectedProduct&&<main key={routePath} className="product-detail-page">
