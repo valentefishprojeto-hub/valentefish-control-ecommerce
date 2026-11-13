@@ -10,7 +10,8 @@ export default async function handler(req,res){
     const search=typeof req.query.search==='string'?req.query.search.trim():null;
     const products=await sql`
       select id, sku, slug, name, description, category, price_cents, compare_at_price_cents,
-             image_url, badge, stock_quantity, weight_grams, width_cm, height_cm, length_cm
+             image_url, badge, stock_quantity, weight_grams, width_cm, height_cm, length_cm,
+             coalesce(metadata->>'sale_unit','peca') as sale_unit
       from public.products
       where active=true
         and (${category}::text is null or category=${category})

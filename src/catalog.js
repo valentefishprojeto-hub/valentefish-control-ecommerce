@@ -1,4 +1,5 @@
-import {api,formatPrice} from './commerce';
+import {api,formatPrice} from './commerce.js';
+import {saleUnit} from '../shared/product-units.js';
 
 export const FEATURED_LIMIT=40;
 
@@ -25,7 +26,8 @@ export function mapStoreProduct(row){
     tag:row.badge||row.tag||'',
     featured:Boolean(row.featured),
     description:row.description||'',
-    stock:row.stockQuantity??row.stock_quantity??0
+    stock:row.stockQuantity??row.stock_quantity??0,
+    saleUnit:saleUnit(row.saleUnit??row.sale_unit??row.metadata?.sale_unit)
   };
 }
 

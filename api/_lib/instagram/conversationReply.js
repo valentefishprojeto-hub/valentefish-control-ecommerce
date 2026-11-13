@@ -100,7 +100,7 @@ async function listCategory(tools,slug,quantity,offset=0){
   if(!items.length){
     return {text:`No momento não temos ${name.toLowerCase()} a pronta entrega 😕 Você pode acompanhar as novidades aqui: ${all}\nSe procura algo específico, faça seu orçamento: ${infoLoja('orcamento')}`,state:'aguardando_interesse',context:{categoria:slug,produtos:[],inicio:0}};
   }
-  const lines=items.map((item,index)=>`${index+1}. ${item.nome}: ${item.preco}${item.disponibilidade==='últimas unidades'?' (últimas unidades)':''}\n${item.link}`);
+  const lines=items.map((item,index)=>`${index+1}. ${item.nome}: ${item.preco}${item.unidade?` ${item.unidade}`:''}${item.disponibilidade==='últimas unidades'?' (últimas unidades)':''}\n${item.link}`);
   const shortfall=quantity&&items.length<quantity?`\nNo momento ${offset?'restam':'temos'} ${items.length} ${items.length===1?'opção':'opções'} a pronta entrega.`:'';
   const title=offset?`Mais ${name.toLowerCase()} a pronta entrega:`:`${name} a pronta entrega:`;
   return {text:`${title}\n${lines.join('\n')}${shortfall}\nVer todos: ${all}\nQuer saber mais sobre algum deles? É só dizer o número.`,state:'mostrou_categoria',

@@ -26,7 +26,7 @@ export default async function handler(req,res){
 
     const created=await sql.begin(async tx=>{
       const items=await tx`
-        select ci.quantity,p.id,p.sku,p.slug,p.name,p.image_url,p.price_cents,p.stock_quantity
+        select ci.quantity,p.id,p.sku,p.slug,p.name,p.image_url,p.price_cents,p.stock_quantity,p.metadata
         from public.cart_items ci
         join public.products p on p.id=ci.product_id
         where ci.cart_id=${cart.id} and p.active=true
@@ -58,7 +58,7 @@ export default async function handler(req,res){
             (order_id,product_id,sku,product_name,product_image_url,unit_price_cents,quantity,total_cents,product_snapshot)
           values
             (${order.id},${item.id},${item.sku},${item.name},${item.image_url},${item.price_cents},${item.quantity},
-             ${item.price_cents*item.quantity},${tx.json({slug:item.slug})})
+             ${item.price_cents*item.quantity},${tx.json({slug:item.slug,sale_unit:item.metadata?.sale_unit||'peca'})})
         `;
       }
       return {order,items,total};

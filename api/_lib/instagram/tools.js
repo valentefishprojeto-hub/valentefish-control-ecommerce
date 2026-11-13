@@ -2,13 +2,14 @@ import {db} from '../db.js';
 import {normalize,formatPrice,trackedLink} from './text.js';
 import {infoLoja,handoffMessage} from './knowledge.js';
 import {quoteShipping} from './shipping.js';
+import {priceUnit} from '../../../shared/product-units.js';
 
 export const pauseHours=env=>Math.min(168,Math.max(1,Number(env.IG_HUMAN_PAUSE_HOURS)||12));
 const statuses={pending_payment:'aguardando pagamento',pending:'pendente',authorized:'autorizado',paid:'pago',processing:'em processamento',shipped:'enviado',delivered:'entregue',cancelled:'cancelado',refunded:'reembolsado',partially_refunded:'reembolso parcial',failed:'não aprovado',unfulfilled:'aguardando preparação',preparing:'em preparação',returned:'devolvido',label_created:'etiqueta emitida',posted:'postado',in_transit:'em transporte',out_for_delivery:'saiu para entrega',exception:'ocorrência na entrega'};
 const statusLabel=value=>statuses[value]||'a confirmar com a equipe';
 function product(p,detail=false){
   const available=p.active&&p.stock_quantity>0;
-  return {slug:p.slug,nome:p.name,categoria:p.category_name||p.category,preco:formatPrice(p.price_cents),disponibilidade:!available?'não disponível no momento':p.stock_quantity<=2?'últimas unidades':'disponível',badge:p.badge,link:trackedLink(`/produto/${encodeURIComponent(p.slug)}`),
+  return {slug:p.slug,nome:p.name,categoria:p.category_name||p.category,preco:formatPrice(p.price_cents),unidade:priceUnit(p.metadata?.sale_unit),disponibilidade:!available?'não disponível no momento':p.stock_quantity<=2?'últimas unidades':'disponível',badge:p.badge,link:trackedLink(`/produto/${encodeURIComponent(p.slug)}`),
     ...(!available?{orcamento:trackedLink('/orcamento'),orientacao:'Podemos consultar um especialista sobre disponibilidade.'}:{}),
     ...(detail?{descricao:p.description,...(p.compare_at_price_cents?{de:formatPrice(p.compare_at_price_cents),por:formatPrice(p.price_cents)}:{})}:{})};
 }
@@ -24,7 +25,7 @@ export function createTools({sql=db(),conversation,env=process.env,fetch:request
       let offset=0;const found=[];
       while(found.length<5){
         signal?.throwIfAborted();
-        const rows=await sql`select p.id,p.slug,p.name,p.description,p.category,p.price_cents,p.stock_quantity,p.active,p.badge,c.name as category_name
+        const rows=await sql`select p.id,p.slug,p.name,p.description,p.category,p.price_cents,p.stock_quantity,p.active,p.badge,p.metadata,c.name as category_name
           from public.products p left join public.categories c on c.id=p.category_id
           where p.active=true and (${categoria}::text is null or coalesce(c.slug,p.category)=${categoria})
           order by (p.name ilike ${pattern} or p.description ilike ${pattern}) desc,p.name,p.id limit 100 offset ${offset}`;
@@ -35,7 +36,7 @@ export function createTools({sql=db(),conversation,env=process.env,fetch:request
     },
     async detalhes_produto({slug}={}){
       if(typeof slug!=='string'||slug.length>200) return {erro:'Produto inválido'};
-      const [row]=await sql`select p.slug,p.name,p.description,p.category,p.price_cents,p.compare_at_price_cents,p.stock_quantity,p.active,p.badge from public.products p where slug=${slug} limit 1`;
+      const [row]=await sql`select p.slug,p.name,p.description,p.category,p.price_cents,p.compare_at_price_cents,p.stock_quantity,p.active,p.badge,p.metadata from public.products p where slug=${slug} limit 1`;
       return row?product(row,true):null;
     },
     async listar_categorias(){return (await sql`select name,slug from public.categories where active=true order by sort_order,name`).map(x=>({nome:x.name,link:trackedLink(`/c/${encodeURIComponent(x.slug)}`)}));},
@@ -44,7 +45,7 @@ export function createTools({sql=db(),conversation,env=process.env,fetch:request
       if(typeof categoria!=='string'||!/^[a-z0-9-]{1,40}$/.test(categoria)) return [];
       const n=Math.min(5,Math.max(1,Math.trunc(Number(limite))||3));
       const skip=Math.min(500,Math.max(0,Math.trunc(Number(inicio))||0));
-      const rows=await sql`select p.slug,p.name,p.description,p.category,p.price_cents,p.stock_quantity,p.active,p.badge,c.name as category_name
+      const rows=await sql`select p.slug,p.name,p.description,p.category,p.price_cents,p.stock_quantity,p.active,p.badge,p.metadata,c.name as category_name
         from public.products p left join public.categories c on c.id=p.category_id
         where p.active=true and p.stock_quantity>0 and coalesce(c.slug,p.category)=${categoria}
         order by p.featured desc,p.featured_rank,p.name,p.slug limit ${n} offset ${skip}`;

@@ -7,7 +7,7 @@ export default async function handler(req,res){
     const sql=db();
     if(req.method==='GET'){
       const [products,movements]=await Promise.all([
-        sql`select id, sku, name, category, stock_quantity, active from public.products order by stock_quantity, name`,
+        sql`select id, sku, name, category, stock_quantity, active, metadata->>'sale_unit' as sale_unit from public.products order by stock_quantity, name`,
         sql`
           select m.id, m.kind, m.quantity, m.reason, m.created_at, p.name as product_name
           from public.stock_movements m

@@ -6,6 +6,7 @@ import {getSupabase} from './supabaseClient';
 import {BrandLockup} from './brand';
 import {FEATURED_LIMIT,moneyInput} from './catalog';
 import InstagramBot from './InstagramBot';
+import {productUnits,stockUnit} from '../shared/product-units.js';
 
 const groups=[
   ['Operação',[
@@ -61,7 +62,7 @@ function Toolbar({search,onSearch,placeholder,filters,filter,onFilter,action}){
 function ProductForm({categories,initial,busy,onSubmit,notify}){
   const [form,setForm]=useState(()=>({
     name:initial?.name||'',sku:initial?.sku||'',categoryId:initial?.categoryId||categories[0]?.id||'',
-    price:initial?moneyInput(initial.priceCents):'',stockQuantity:initial?.stockQuantity??0,
+    price:initial?moneyInput(initial.priceCents):'',stockQuantity:initial?.stockQuantity??0,saleUnit:initial?.saleUnit||'peca',
     badge:initial?.badge||'',description:initial?.description||'',
     featured:Boolean(initial?.featured),active:initial?.active!==false
   }));
@@ -153,7 +154,8 @@ function ProductForm({categories,initial,busy,onSubmit,notify}){
       <Field label="SKU (opcional)"><input name="sku" value={form.sku} onChange={update} placeholder="Ex.: VF-PEI-010"/></Field>
       <Field label="Categoria"><select name="categoryId" value={form.categoryId} onChange={update} required>{categories.map(category=><option key={category.id} value={category.id}>{category.name}</option>)}</select></Field>
       <Field label="Preço"><input name="price" value={form.price} onChange={update} placeholder="289,00" required/></Field>
-      <Field label="Estoque inicial"><input name="stockQuantity" type="number" min="0" value={form.stockQuantity} onChange={update}/></Field>
+      <Field label="Unidade de venda"><select name="saleUnit" value={form.saleUnit} onChange={update}>{Object.entries(productUnits).map(([value,unit])=><option key={value} value={value}>{unit.option||unit.name}</option>)}</select></Field>
+      <Field label={`Estoque em ${productUnits[form.saleUnit].plural}`}><input name="stockQuantity" type="number" min="0" value={form.stockQuantity} onChange={update}/></Field>
       <Field label="Selo"><input name="badge" value={form.badge} onChange={update} placeholder="Quarentenado"/></Field>
       <Field label="Descrição"><textarea name="description" rows="4" value={form.description} onChange={update}/></Field>
     </div>
@@ -364,7 +366,7 @@ export function ErpApp({notify}){
             <td className="erp-product-cell">{item.imageUrl&&<img src={item.imageUrl} alt=""/>}<div><b>{item.name}</b><small>{item.sku||item.slug}</small></div></td>
             <td>{item.categoryName}</td>
             <td>{formatPrice((item.priceCents||0)/100)}</td>
-            <td><Status tone={item.stockQuantity<=2?'warn':'ok'}>{item.stockQuantity} un.</Status></td>
+            <td><Status tone={item.stockQuantity<=2?'warn':'ok'}>{item.stockQuantity} {stockUnit(item.saleUnit,item.stockQuantity)}</Status></td>
             <td><Status tone={item.featured?'info':item.active?'ok':'muted'}>{item.featured?'Destaque':item.active?'Categoria':'Oculto'}</Status></td>
             <td className="erp-row-actions"><button type="button" className="erp-ghost" onClick={()=>{setEditing(item);setModal('produto')}}>Editar</button><button type="button" className="erp-danger" aria-label={`Apagar ${item.name}`} onClick={()=>{if(window.confirm(`Apagar definitivamente "${item.name}"?\n\nEle sai da loja e do ERP e não dá para desfazer. Pedidos e vendas antigos continuam no histórico.\n\nPara só esconder da loja, use "Editar" e desmarque "Visível no e-commerce".`))run(()=>api('/api/erp/products',{method:'DELETE',body:{id:item.id}}),'Produto apagado')}}><Trash2 size={14}/></button></td>
           </tr>)}</tbody>
@@ -387,7 +389,7 @@ export function ErpApp({notify}){
       {page==='estoque'&&<section className="card">
         <Toolbar search={search} onSearch={setSearch} placeholder="Buscar no estoque" filter={filter} onFilter={setFilter} filters={[['todos','Todos'],['baixo','Crítico']]} action={<button type="button" onClick={()=>setModal('estoque')}><Plus size={16}/> Lançar movimento</button>}/>
         <table className="erp-table"><thead><tr><th>Produto</th><th>Atual</th></tr></thead>
-          <tbody>{visibleStock.map(item=><tr key={item.id}><td><b>{item.name}</b><small>{item.sku||item.category}</small></td><td><Status tone={item.stock_quantity<=2?'warn':'ok'}>{item.stock_quantity}</Status></td></tr>)}</tbody>
+          <tbody>{visibleStock.map(item=><tr key={item.id}><td><b>{item.name}</b><small>{item.sku||item.category}</small></td><td><Status tone={item.stock_quantity<=2?'warn':'ok'}>{item.stock_quantity} {stockUnit(item.sale_unit,item.stock_quantity)}</Status></td></tr>)}</tbody>
         </table>
         <h2 className="erp-sub">Movimentações</h2>
         <table className="erp-table"><thead><tr><th>Quando</th><th>Produto</th><th>Tipo</th><th>Qtd</th></tr></thead>
@@ -487,7 +489,7 @@ export function ErpApp({notify}){
     </Modal>
     <Modal open={modal==='estoque'} title="Movimentar estoque" onClose={()=>setModal(null)}>
       <form className="erp-form" onSubmit={event=>{event.preventDefault();run(async()=>{await api('/api/erp/stock',{method:'POST',body:stockForm});setStockForm(current=>({...current,quantity:1,reason:''}))},'Estoque atualizado')}}>
-        <Field label="Produto"><select value={stockForm.productId} onChange={event=>setStockForm(current=>({...current,productId:event.target.value}))} required><option value="">Selecione</option>{stock.products.map(item=><option key={item.id} value={item.id}>{item.name} ({item.stock_quantity})</option>)}</select></Field>
+        <Field label="Produto"><select value={stockForm.productId} onChange={event=>setStockForm(current=>({...current,productId:event.target.value}))} required><option value="">Selecione</option>{stock.products.map(item=><option key={item.id} value={item.id}>{item.name} ({item.stock_quantity} {stockUnit(item.sale_unit,item.stock_quantity)})</option>)}</select></Field>
         <Field label="Tipo"><select value={stockForm.kind} onChange={event=>setStockForm(current=>({...current,kind:event.target.value}))}><option value="entrada">Entrada</option><option value="saida">Saída</option><option value="ajuste">Ajuste para</option></select></Field>
         <Field label="Quantidade"><input type="number" min="1" value={stockForm.quantity} onChange={event=>setStockForm(current=>({...current,quantity:event.target.value}))}/></Field>
         <Field label="Motivo"><input value={stockForm.reason} onChange={event=>setStockForm(current=>({...current,reason:event.target.value}))} placeholder="Compra, perda, contagem..."/></Field>

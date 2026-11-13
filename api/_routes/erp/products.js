@@ -1,6 +1,7 @@
 import {db} from '../../_lib/db.js';
 import {FEATURED_LIMIT,mapProduct,parseMoney,uniqueSlug} from '../../_lib/erp.js';
 import {body,fail,method} from '../../_lib/http.js';
+import {productUnits} from '../../../shared/product-units.js';
 
 // SKU é opcional: vazio vira null, senão a coluna unique recusa o segundo produto sem SKU.
 const optionalSku=value=>String(value??'').trim()||null;
@@ -29,6 +30,8 @@ export default async function handler(req,res){
     }
 
     const input=body(req);
+    if((req.method==='POST'||req.method==='PATCH')&&input.saleUnit!==undefined&&!Object.hasOwn(productUnits,input.saleUnit))
+      return res.status(422).json({error:'Selecione uma unidade de venda válida'});
     let category=null;
     if(req.method==='POST'||req.method==='PATCH'){
       category=await loadCategory(sql,input.categoryId||input.category);
@@ -49,7 +52,7 @@ export default async function handler(req,res){
       const [row]=await sql`
         insert into public.products (
           sku, slug, name, description, category, category_id, price_cents, image_url, media, badge,
-          stock_quantity, featured, featured_rank, active
+          stock_quantity, featured, featured_rank, active, metadata
         ) values (
           ${optionalSku(input.sku)},
           ${slug},
@@ -64,7 +67,8 @@ export default async function handler(req,res){
           ${Math.max(0,Number(input.stockQuantity??input.stock??0))},
           ${featured},
           ${Number(input.featuredRank||0)},
-          ${input.active!==false}
+          ${input.active!==false},
+          ${sql.json({sale_unit:input.saleUnit||'peca'})}
         )
         returning id
       `;
@@ -113,7 +117,8 @@ export default async function handler(req,res){
           stock_quantity=${input.stockQuantity!=null||input.stock!=null?Math.max(0,Number(input.stockQuantity??input.stock)):current.stock_quantity},
           featured=${Boolean(featured)},
           featured_rank=${input.featuredRank??current.featured_rank},
-          active=${input.active??current.active}
+          active=${input.active??current.active},
+          metadata=jsonb_set(metadata,'{sale_unit}',to_jsonb(${input.saleUnit||current.metadata?.sale_unit||'peca'}::text),true)
       where id=${id}
     `;
     const [product]=await sql`select p.*, c.name as category_name, c.slug as category_slug from public.products p left join public.categories c on c.id=p.category_id where p.id=${id}`;

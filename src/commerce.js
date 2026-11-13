@@ -1,4 +1,5 @@
-import {getSupabase} from './supabaseClient';
+import {getSupabase} from './supabaseClient.js';
+import {saleUnit} from '../shared/product-units.js';
 
 const CART_KEY='vf-cart';
 const SESSION_KEY='vf-session';
@@ -41,7 +42,7 @@ export function upsertCartItem(items,product,quantity=1){
   const amount=Math.max(1,Number(quantity)||1);
   const existing=items.find(item=>item.slug===slug);
   if(existing){
-    return items.map(item=>item.slug===slug?{...item,quantity:item.quantity+amount}:item);
+    return items.map(item=>item.slug===slug?{...item,saleUnit:saleUnit(product.saleUnit),quantity:item.quantity+amount}:item);
   }
   return [...items,{
     slug,
@@ -49,6 +50,7 @@ export function upsertCartItem(items,product,quantity=1){
     price:product.price,
     image:product.image,
     category:product.category,
+    saleUnit:saleUnit(product.saleUnit),
     quantity:amount
   }];
 }

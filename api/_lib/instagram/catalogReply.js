@@ -27,6 +27,6 @@ export async function catalogReply(text,tools){
     return {text:`Não encontrei esse item no catálogo online. Veja todos os produtos aqui: ${store}\nSe for um pedido especial, faça seu orçamento: ${infoLoja('orcamento')}`};
   }
   const best=[...found.values()].sort((a,b)=>b.hits-a.hits).slice(0,3).map(({item})=>item);
-  const lines=best.map(item=>`• ${item.nome}: ${item.preco} (${item.disponibilidade})\n${item.link}`);
+  const lines=best.map(item=>`• ${item.nome}: ${item.preco}${item.unidade?` ${item.unidade}`:''} (${item.disponibilidade})\n${item.link}`);
   return {text:(best.length===1?'Encontrei:\n':'Encontrei estas opções:\n')+lines.join('\n'),items:best};
 }

@@ -19,7 +19,7 @@ export async function cartPayload(cart){
   const sql=db();
   const items=await sql`
     select ci.id, ci.quantity, p.id as product_id, p.slug, p.name, p.price_cents,
-           p.image_url, p.stock_quantity, p.active
+           p.image_url, p.stock_quantity, p.active, p.metadata
     from public.cart_items ci
     join public.products p on p.id=ci.product_id
     where ci.cart_id=${cart.id}
@@ -36,6 +36,7 @@ export async function cartPayload(cart){
       priceCents:item.price_cents,
       quantity:item.quantity,
       stockQuantity:item.stock_quantity,
+      saleUnit:item.metadata?.sale_unit||'peca',
       available:item.active&&item.stock_quantity>=item.quantity,
       totalCents:item.price_cents*item.quantity
     })),

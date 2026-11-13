@@ -1,4 +1,5 @@
 import {moneyToCents} from './db.js';
+import {saleUnit} from '../../shared/product-units.js';
 
 export const FEATURED_LIMIT=40;
 
@@ -56,6 +57,7 @@ export function mapProduct(row){
     imageUrl:coverUrl(row),
     media,
     badge:row.badge,
+    saleUnit:saleUnit(row.metadata?.sale_unit),
     stockQuantity:row.stock_quantity,
     featured:Boolean(row.featured),
     featuredRank:row.featured_rank||0,

@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {MessageCircle,AtSign,Check,ArrowRight,Search,ShoppingCart,User,Truck,ShieldCheck,BadgeCheck,Star,ArrowLeft,Heart,MessageSquareText,LogOut,CreditCard,X,Menu,Trash2,MapPin,Package} from 'lucide-react';
 import {api,cartCount,cartSubtotal,fallbackQuotes,formatPrice,loadCart,loadOrders,lookupCep,priceValue,saveCart,saveOrder,setCartQuantity,upsertCartItem} from './commerce';
+import {priceUnit,stockUnit} from '../shared/product-units.js';
 import {authMessage,currentSession,loadProfile,loginAccount as signInAccount,loginWithGoogle,logoutAccount as signOutAccount,onAuthChange,registerAccount as signUpAccount,updateAccount} from './auth';
 import {PrivacyPage} from './privacy';
 import {FEATURED_LIMIT,categoryPath,fallbackCategories,loadCatalog} from './catalog';
@@ -130,7 +131,7 @@ function ProductCard({item,onOpen,onAdd,onBuy}){
       <small>{item.category}</small>
       <h3><button className="product-name-button" onClick={()=>onOpen(item)}>{item.name}</button></h3>
       <div className="rating">{[1,2,3,4,5].map(n=><Star key={n} size={14} fill="currentColor"/>)}<span>5.0</span></div>
-      <strong>{item.price}</strong>
+      <strong>{item.price} <small>{priceUnit(item.saleUnit)}</small></strong>
       <span className="installment">ou 3x sem juros</span>
       <div className="product-actions">
         <button className="product-buy-button" onClick={()=>onBuy(item)}>Comprar</button>
@@ -196,7 +197,7 @@ function CartPage({items,suggestions,onOpen,onAdd,onQuantity,onRemove,onCheckout
           <div className="cart-item-copy">
             <small>{item.category}</small>
             <button type="button" className="product-name-button" onClick={()=>onOpen(item)}>{item.name}</button>
-            <span>{item.price} <i>a unidade</i></span>
+            <span>{item.price} <i>{priceUnit(item.saleUnit)}</i></span>
             <span>ou 3x de {formatPrice(line/3)} sem juros</span>
           </div>
           <div className="cart-item-tools">
@@ -235,7 +236,7 @@ function CartDrawer({open,items,added,onClose,onQuantity,onRemove,onCart,onCheck
       {items.length?<>
         <ul className="cart-drawer-list">{items.map(item=><li key={item.slug} className={item.slug===addedSlug?'just-added':''}>
           <img src={item.image} alt=""/>
-          <div><b>{item.name}</b><small>{item.price} un.</small>
+          <div><b>{item.name}</b><small>{item.price} {priceUnit(item.saleUnit)}</small>
             <div className="cart-drawer-tools">
               <QuantityStepper value={item.quantity} onChange={next=>onQuantity(item.slug,next)} label={item.name}/>
               <button type="button" className="cart-remove" onClick={()=>onRemove(item.slug)} aria-label={`Remover ${item.name}`}><Trash2 size={14}/></button>
@@ -378,7 +379,7 @@ function CheckoutPage({items,session,busy,onSubmit,onCart}){
       </div>
       <aside className="commerce-card cart-summary">
         <span className="eyebrow">SEU PEDIDO</span>
-        <ul className="checkout-items">{items.map(item=><li key={item.slug}><img src={item.image} alt=""/><div><b>{item.name}</b><small>{item.quantity} un. • {item.price}</small></div><strong>{formatPrice(priceValue(item.price)*item.quantity)}</strong></li>)}</ul>
+        <ul className="checkout-items">{items.map(item=><li key={item.slug}><img src={item.image} alt=""/><div><b>{item.name}</b><small>{item.quantity} {stockUnit(item.saleUnit,item.quantity)} • {item.price}</small></div><strong>{formatPrice(priceValue(item.price)*item.quantity)}</strong></li>)}</ul>
         <p><span>Produtos</span><b>{formatPrice(productsTotal)}</b></p>
         <p><span>Frete</span><b>{shipping?.priceCents?formatPrice(shipping.priceCents/100):'Grátis'}</b></p>
         <strong><span>Total</span>{formatPrice(total)}</strong>
@@ -671,7 +672,7 @@ function Shop({notify}){
       <div className="product-breadcrumb"><button onClick={()=>navigateStore('home')}>Início</button><span>/</span><button onClick={()=>selectedProduct.categorySlug?openCategory(selectedProduct.categorySlug):navigateStore('produtos')}>{selectedProduct.category}</button><span>/</span><b>{selectedProduct.name}</b></div>
       <section className="product-detail-main">
         <ProductGallery product={selectedProduct}/>
-        <div className="product-detail-info"><span className="eyebrow">{selectedProduct.category}</span><h1>{selectedProduct.name}</h1><div className="product-detail-rating"><div className="rating">{[1,2,3,4,5].map(n=><Star key={n} size={17} fill="currentColor"/>)}</div><span>5.0 • Produto selecionado</span></div><span className="product-availability"><i/> Disponível em estoque</span><p className="product-description">{selectedInfo.description}</p><div className="product-detail-price"><strong>{selectedProduct.price}</strong><span>ou em até 3x sem juros</span></div><div className="product-purchase"><div className="quantity-control"><button onClick={()=>setQuantity(value=>Math.max(1,value-1))} aria-label="Diminuir quantidade">−</button><b>{quantity}</b><button onClick={()=>setQuantity(value=>value+1)} aria-label="Aumentar quantidade">+</button></div><div className="product-actions"><button className="product-buy-button" onClick={()=>buyNow(selectedProduct,quantity)}>Comprar agora</button><button className="product-add-button" onClick={()=>addToCart(selectedProduct,quantity)}><ShoppingCart size={19}/> Adicionar ao carrinho</button></div></div><a className="product-help" href="https://api.whatsapp.com/send/?phone=5521987128089" target="_blank" rel="noreferrer"><MessageCircle size={18}/> Tirar dúvidas com um especialista</a><div className="product-detail-trust"><span><ShieldCheck/> Compra segura</span><span><Truck/> Envio especializado</span><span><BadgeCheck/> Procedência garantida</span></div></div>
+        <div className="product-detail-info"><span className="eyebrow">{selectedProduct.category}</span><h1>{selectedProduct.name}</h1><div className="product-detail-rating"><div className="rating">{[1,2,3,4,5].map(n=><Star key={n} size={17} fill="currentColor"/>)}</div><span>5.0 • Produto selecionado</span></div><span className="product-availability"><i/> Disponível em estoque</span><p className="product-description">{selectedInfo.description}</p><div className="product-detail-price"><strong>{selectedProduct.price}</strong><span>{priceUnit(selectedProduct.saleUnit)} • ou em até 3x sem juros</span></div><div className="product-purchase"><div className="quantity-control"><button onClick={()=>setQuantity(value=>Math.max(1,value-1))} aria-label="Diminuir quantidade">−</button><b>{quantity}</b><button onClick={()=>setQuantity(value=>value+1)} aria-label="Aumentar quantidade">+</button></div><div className="product-actions"><button className="product-buy-button" onClick={()=>buyNow(selectedProduct,quantity)}>Comprar agora</button><button className="product-add-button" onClick={()=>addToCart(selectedProduct,quantity)}><ShoppingCart size={19}/> Adicionar ao carrinho</button></div></div><a className="product-help" href="https://api.whatsapp.com/send/?phone=5521987128089" target="_blank" rel="noreferrer"><MessageCircle size={18}/> Tirar dúvidas com um especialista</a><div className="product-detail-trust"><span><ShieldCheck/> Compra segura</span><span><Truck/> Envio especializado</span><span><BadgeCheck/> Procedência garantida</span></div></div>
       </section>
       <section className="product-detail-content"><article><span className="eyebrow">CONHEÇA O PRODUTO</span><h2>Descrição</h2><p>{selectedInfo.description}</p><p>Nossa equipe acompanha a seleção, conservação e preparação de cada item para oferecer mais segurança antes, durante e depois da compra.</p></article><article><span className="eyebrow">INFORMAÇÕES IMPORTANTES</span><h2>Detalhes</h2><ul>{selectedInfo.details.map(detail=><li key={detail}><Check size={17}/>{detail}</li>)}</ul></article><article><span className="eyebrow">DA VALENTE ATÉ VOCÊ</span><h2>Entrega e cuidados</h2><p>O prazo e a modalidade de envio são definidos conforme o destino e o tipo de produto. Animais recebem embalagem e transporte específicos.</p><button onClick={()=>navigateStore('orcamento')}>Consultar entrega <ArrowRight size={17}/></button></article></section>
       {relatedProducts.length>0&&<section className="related-products"><div className="section-heading"><div><span className="eyebrow">VOCÊ TAMBÉM PODE GOSTAR</span><h2>Produtos relacionados</h2></div></div><div>{relatedProducts.map(item=><button key={item.name} onClick={()=>openProduct(item)}><span><img src={item.image} alt=""/></span><small>{item.category}</small><b>{item.name}</b><strong>{item.price}</strong><i>Ver detalhes <ArrowRight size={15}/></i></button>)}</div></section>}

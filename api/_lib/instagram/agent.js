@@ -3,7 +3,7 @@ import {toolDefinitions} from './tools.js';
 import {normalize} from './text.js';
 
 function renderProduct(p){
-  return `• ${p.nome}: ${p.de?`de ${p.de} por ${p.por}`:p.preco} — ${p.disponibilidade}\n${p.link}${p.orcamento?`\nPodemos consultar um especialista: ${p.orcamento}`:''}`;
+  return `• ${p.nome}: ${p.de?`de ${p.de} por ${p.por}`:p.preco}${p.unidade?` ${p.unidade}`:''} — ${p.disponibilidade}\n${p.link}${p.orcamento?`\nPodemos consultar um especialista: ${p.orcamento}`:''}`;
 }
 function render(name,result){
   if(result?.erro) return result.erro+(result.aviso?' '+result.aviso:'');

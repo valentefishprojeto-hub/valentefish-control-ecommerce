@@ -13,6 +13,8 @@ test('tools consultam seed, preço atual, busca sem acento, frete e pedidos priv
   }});
   const found=await tools.buscar_produtos({termo:'yellow tang'});
   assert.equal(found[0].preco,'R$ 849,00');assert.equal(found[0].disponibilidade,'disponível');
+  await sql`update products set metadata=jsonb_set(metadata,'{sale_unit}','"boca"'::jsonb) where slug='yellow-tang'`;
+  assert.equal((await tools.detalhes_produto({slug:'yellow-tang'})).unidade,'por boca');
   assert.ok(found[0].link.includes('utm_source=instagram'));assert.equal(found[0].stock_quantity,undefined);
   await sql`update products set stock_quantity=0,price_cents=85000 where slug='yellow-tang'`;
   const detail=await tools.detalhes_produto({slug:'yellow-tang'});
